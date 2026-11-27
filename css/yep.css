@@ -102,6 +102,8 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
 .count-chip i { width: 10px; height: 10px; border-radius: 50%; background: #9ff05a; animation: live 1.6s infinite; }
 .count-chip b { font-family: var(--f-t); font-size: 22px; font-weight: 700; }
 @keyframes live { 0% { box-shadow: 0 0 0 0 rgba(159,240,90,.7); } 100% { box-shadow: 0 0 0 12px rgba(159,240,90,0); } }
+.art { display: contents; }
+.art-img, .m-only { display: none; }
 .facts-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; opacity: 0; animation: fade-up .9s 2.1s ease-out forwards; }
 .facts-row span { padding: 8px 16px; border-radius: 30px; font-family: var(--f-d); font-size: 15px; }
 .facts-row span b { font-weight: 600; margin-right: 6px; color: var(--gold); }
@@ -229,16 +231,19 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
   .brandchip img { height: 30px; }
   .cursor-scroll { display: none; }
   .bg-layer, .sky-fx { display: none; }
-  .page-hero { min-height: 100svh; position: relative; }
-  /* phone key visual (bottom-aligned, full width): empty sky on top, symbol, an empty band, then city + people.
-     Title goes in the top sky, the button in the empty band between the symbol and the city. */
-  .hero { position: static; width: auto; }
-  .title-block { position: absolute; left: 16px; right: 16px; bottom: min(calc(138vw + 4px), calc(100svh - 300px)); text-align: center; }
+  .page-hero { min-height: 0; position: relative; background: #041a46; }
+  .hero { position: relative; width: auto; left: auto; top: auto; padding-top: 70px; display: block; }
+  .title-block { position: relative; z-index: 2; text-align: center; padding: 0 16px; }
   .eyebrow { justify-content: center; font-size: 11px; letter-spacing: 1.5px; gap: 10px; } .eyebrow img { height: 26px; } .eyebrow i { height: 20px; }
-  .theme-title { margin-top: 10px; font-size: min(11vw, 52px); white-space: normal; }
-  .road-line { margin: 0 auto; width: 80%; height: 26px; }
-  .vi { font-size: min(6.4vw, 28px); }
-  .cta-row { position: absolute; left: 16px; right: 16px; bottom: calc(85vw - 58px); margin: 0; flex-direction: column; gap: 10px; }
+  .theme-title { margin-top: 10px; font-size: min(10.5vw, 50px); white-space: normal; }
+  .road-line { margin: 0 auto; width: 78%; height: 24px; }
+  .vi { font-size: min(6.2vw, 28px); }
+  .m-only { display: inline-flex; margin-top: 12px; } .d-only { display: none !important; }
+  /* the picture: its own top 22% is empty sky, so it slides up under the title */
+  .art { display: block; position: relative; margin-top: -36vw; }
+  .art-img { display: block; width: 100%; height: auto; }
+  .art::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 14%; background: linear-gradient(#041a46, rgba(4,26,70,0)); z-index: 1; pointer-events: none; }
+  .cta-row { position: absolute; left: 16px; right: 16px; top: calc(53.5% - 26px); margin: 0; justify-content: center; z-index: 2; }
   .btn-shine { width: min(100%, 320px); padding: 15px 24px; font-size: 17px; }
   .count-chip { padding: 8px 16px; font-size: 14px; } .count-chip b { font-size: 17px; }
   .facts-row { display: none !important; }
@@ -253,8 +258,8 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
   .ticket .cut { margin: 18px -22px 14px; }
   .ticket .num { font-size: 110px; }
   .group { grid-template-columns: 1fr; gap: 14px; margin-top: 24px; }
-  .card3d { min-height: 0; padding: 20px 20px 18px 22px; display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; }
-  .card3d .ix { font-size: 60px; grid-row: span 3; }
+  .card3d { min-height: 0; padding: 18px 18px 16px 22px; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; align-items: center; }
+  .card3d .ix { font-size: 40px; line-height: 1; grid-row: span 3; align-self: center; transform: none; min-width: 2.2ch; }
   .card3d h3 { margin: 0; font-size: 20px; line-height: 26px; }
   .card3d .pick { margin-top: 6px; }
   .card3d .bar { left: 0; right: auto; top: 18px; bottom: 18px; width: 5px; height: auto; border-radius: 0 6px 6px 0; }
@@ -264,11 +269,6 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
 }
 @media (prefers-reduced-motion: reduce) { .yep-page.active .rv { animation: none; opacity: 1; } .ticket, .card3d { transition: none; } }
 
-/* short phones: the title has to share the sky with the symbol, so darken behind it */
-@media (max-width: 900px) and (max-height: 740px) {
-  .page-hero::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 60%; background: radial-gradient(80% 60% at 50% 30%, rgba(4,26,70,.7), rgba(4,26,70,0)); pointer-events: none; }
-  .eyebrow { display: none; }
-  .theme-title { font-size: 9.5vw; }
 }
 @media (prefers-reduced-motion: reduce) {
   .eyebrow, .vi, .cta-row, .facts-row, .theme-title .ch { animation: none !important; opacity: 1 !important; transform: none !important; }

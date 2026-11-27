@@ -75,14 +75,14 @@
     if (!st) return;
     $$('[data-f]').forEach(function (el) { var v = st[el.dataset.f]; if (v) el.textContent = v; });
     if (st.bg && Y.safeImg(st.bg)) root.style.setProperty('--bg', 'url("' + st.bg + '")');
-    if (st.bgM && Y.safeImg(st.bgM)) root.style.setProperty('--bgm', 'url("' + st.bgM + '")');
+    if (st.bgM && Y.safeImg(st.bgM)) { root.style.setProperty('--bgm', 'url("' + st.bgM + '")'); if ($('#heroArt').getAttribute('src') !== st.bgM) $('#heroArt').src = st.bgM; }
     Y.fx.splitTitle($('#themeTitle'), st.theme || 'The Other Way');
     var facts = [];
     if (st.eventDate) facts.push(['Thời gian', st.eventDate]);
     if (st.venue) facts.push(['Địa điểm', st.venue]);
     $('#facts').hidden = !facts.length;
     $('#facts').innerHTML = facts.map(function (f) { return '<span class="glass ring"><b>' + esc(f[0]) + '</b>' + esc(f[1]) + '</span>'; }).join('');
-    Y.fx.countTo($('#liveCount'), st.checkins);
+    $$('.liveCount').forEach(function (el) { Y.fx.countTo(el, st.checkins); });
     $('#heroCta').textContent = me ? 'Xem vé của bạn · ' + me.code : 'Check-in ngay';
     renderCheckin(); renderVote(); renderPrizes();
   }

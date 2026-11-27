@@ -50,10 +50,13 @@ Lần đầu chạy với PostgreSQL, nếu còn file `data/db.json` cũ thì d�
    Trình duyệt được ghi nhớ 30 ngày; mở lại trang là thấy vé, mã số, lịch sử các lần truy cập. Đổi máy: "Đã check-in trên máy khác?" → nhập SĐT + email.
    Mỗi số điện thoại chỉ check-in một lần. BTC có thể check-in hộ trong dashboard.
 2. **Bình chọn**: BTC bật "Cổng bình chọn" trong dashboard. Người đã check-in chọn 1 tiết mục (đổi ý được khi cổng còn mở).
-   `/screen/` hiển thị mỗi tiết mục là một tòa nhà 3D, mỗi phiếu thêm một tầng; tòa cao nhất được thắp biểu tượng IPS.
-3. **Bốc thăm**: tab Bốc thăm trong dashboard (phím F toàn màn hình, Space bắt đầu). Người thắng được **máy chủ chọn ngẫu nhiên (crypto)** trong toàn bộ người đã check-in và chưa trúng giải,
-   sau đó 8 mã số chạy trên "Đường đua Lối Riêng" và mã thắng chạm cổng IPS đầu tiên. "Vắng mặt, bốc lại" đánh dấu vắng và loại người đó khỏi các lượt sau.
-   Kết quả chỉ hiện trên điện thoại người trúng sau khi đường đua kết thúc.
+   `/screen/` hiển thị mỗi tiết mục là một tòa nhà 3D, **mỗi 10 phiếu thêm một tầng** (chỉnh ở tab Bình chọn); tòa cao nhất được thắp biểu tượng IPS.
+3. **Bốc thăm** (tab Bốc thăm, phím F toàn màn hình), **2 lần bấm** (Space, nút hoặc bấm vào sân khấu):
+   - Lần 1: máy chủ chọn ngẫu nhiên người thắng (crypto) trong toàn bộ người đã check-in và chưa có tên trong danh sách trúng giải; màn hình chạy **vòng loại** (bức tường mã số) rồi **dừng** ở các mã vào chung kết.
+   - Lần 2: đếm ngược 3-2-1 và **đường đua** tới biểu tượng IPS ở cuối đường. Thời gian đua mặc định 20 giây, chỉnh ngay trên tab Bốc thăm.
+   - Có âm thanh (tổng hợp bằng Web Audio, không dùng file nhạc) và nút bật/tắt ở góc sân khấu.
+   - Bấm "Trao giải" hoặc "Vắng mặt, bốc lại" để ghi nhận. Chỉ sau bước này kết quả mới hiện trên điện thoại người trúng và các màn hình khác.
+   - Tab **Người trúng giải** liệt kê ai trúng giải gì, liên hệ, trạng thái; người đã có tên (kể cả vắng mặt) bị loại khỏi mọi lượt sau.
 4. **Sau sự kiện**: Dữ liệu → Xuất Excel (CSV) gồm mã, thông tin, giờ check-in, số lần mở trang, tiết mục đã bình chọn, giải thưởng.
 
 ## Chỉnh nội dung

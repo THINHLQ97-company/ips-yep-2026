@@ -25,7 +25,9 @@ const BASE_URL = (env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/$/, '
 const DATA_DIR = path.resolve(ROOT, env.DATA_DIR || 'data');
 const ADMIN_PASSWORD = env.ADMIN_PASSWORD || '';
 if (!ADMIN_PASSWORD) console.warn('[!] ADMIN_PASSWORD chưa đặt: dashboard đang khoá. Thêm ADMIN_PASSWORD vào .env rồi khởi động lại.');
-const REVEAL_MS = 18000;   // a fresh draw stays hidden from phones/screens until both rounds (wall + race) have played
+// A fresh draw stays hidden from phones and screens until the BTC reveals it at the end of the race
+// (or, as a safety net, 15 minutes later if the dashboard was closed mid-draw).
+const REVEAL_FALLBACK_MS = 15 * 60e3;
 
 const store = createStore(env, DATA_DIR);
 const db = store.db;
@@ -68,14 +70,14 @@ function createAttendee(v, source, sample) {
   return a;
 }
 const pub = (a) => a && { id: a.id, code: a.code, name: a.name, type: a.type, dept: a.dept, createdAt: a.createdAt };
-const revealed = () => db.winners.filter((w) => w.at <= now() - REVEAL_MS);
+const revealed = () => db.winners.filter((w) => w.revealed || w.at <= now() - REVEAL_FALLBACK_MS);
 
 function publicStatus() {
   const s = db.settings, votes = {};
   for (const v of Object.values(db.votes)) votes[v.perf] = (votes[v.perf] || 0) + 1;
   return {
     eventName: s.eventName, theme: s.theme, themeVi: s.themeVi, eventDate: s.eventDate, venue: s.venue,
-    votingOpen: s.votingOpen, bg: s.bg, bgM: s.bgM, bgStage: s.bgStage,
+    votingOpen: s.votingOpen, votesPerFloor: s.votesPerFloor, bg: s.bg, bgM: s.bgM, bgStage: s.bgStage,
     performances: s.performances, prizes: s.prizes, votes, totalVotes: Object.keys(db.votes).length,
     winners: revealed().map((w) => ({ id: w.id, code: w.code, name: w.name, dept: w.dept, tier: w.tier, tierName: w.tierName, item: w.item, at: w.at, status: w.status })),
     checkins: db.attendees.length, publicUrl: (s.publicUrl || BASE_URL).replace(/\/$/, '')
@@ -285,6 +287,8 @@ async function admin(req, res, url) {
     for (const k of ['eventName', 'theme', 'themeVi', 'eventDate', 'venue']) if (k in b) s[k] = str(b[k], 120);
     if ('publicUrl' in b) { const u = str(b.publicUrl, 300); if (u && !/^https?:\/\//.test(u)) return send(res, 400, { error: 'Link phải bắt đầu bằng https://' }); s.publicUrl = u; }
     if ('votingOpen' in b) s.votingOpen = !!b.votingOpen;
+    if ('votesPerFloor' in b) s.votesPerFloor = Math.max(1, Math.min(100, parseInt(b.votesPerFloor, 10) || 10));
+    if ('raceSeconds' in b) s.raceSeconds = Math.max(5, Math.min(120, parseInt(b.raceSeconds, 10) || 20));
     for (const k of ['bg', 'bgM', 'bgStage']) if (k in b) s[k] = isUpload(b[k]) ? b[k] : '';
     if (Array.isArray(b.performances)) s.performances = b.performances.slice(0, 8).map((x, i) => ({ id: str(x.id, 40) || 'p' + token(4), name: str(x.name, 80) || 'Tiết mục ' + (i + 1), team: str(x.team, 80), color: isColor(x.color) ? x.color : '#ffc928' }));
     if (Array.isArray(b.prizes)) s.prizes = b.prizes.slice(0, 20).map((x) => ({ id: str(x.id, 40) || 'z' + token(4), name: str(x.name, 60) || 'Giải', item: str(x.item, 80), count: Math.max(1, Math.min(500, parseInt(x.count, 10) || 1)),
@@ -318,7 +322,6 @@ async function admin(req, res, url) {
     db.winners.push(row);
     store.audit('bốc thăm', 'BTC', `${tier.name}: ${w.code} ${w.name} (trong ${pool.length} người)`);
     changed(true);
-    setTimeout(() => changed(true), REVEAL_MS + 300);
     // round 1 wall: every eligible code (capped at 400 on screen, finalists always included), shuffled
     const wall = [...field, ...others.slice(7, 400 - field.length).map((a) => a.code)];
     for (let i = wall.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [wall[i], wall[j]] = [wall[j], wall[i]]; }
@@ -327,6 +330,7 @@ async function admin(req, res, url) {
   if (p === '/admin/api/winner' && req.method === 'POST') {
     const b = await readJson(req), w = db.winners.find((x) => x.id === b.id);
     if (!w) return send(res, 404, { error: 'Không tìm thấy.' });
+    w.revealed = true;   // the race is over: phones and screens may show it now
     w.status = b.status === 'absent' ? 'absent' : 'won';
     store.audit(w.status === 'absent' ? 'vắng mặt' : 'trao giải', 'BTC', `${w.tierName}: ${w.code} ${w.name}`);
     changed(true);

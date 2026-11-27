@@ -4,7 +4,7 @@
   var Y = window.YEP, $ = Y.$, $$ = Y.$$, esc = Y.esc, api = Y.api;
   var root = $('#root');
   var D = null, ST = null, tab = (location.hash || '#overview').slice(1), q = '', typeF = '';
-  var TABS = [['overview', 'Tổng quan'], ['checkins', 'Danh sách check-in'], ['vote', 'Bình chọn'], ['prizes', 'Giải thưởng'], ['draw', 'Bốc thăm'], ['look', 'Giao diện & sự kiện'], ['data', 'Dữ liệu']];
+  var TABS = [['overview', 'Tổng quan'], ['checkins', 'Danh sách check-in'], ['vote', 'Bình chọn'], ['prizes', 'Giải thưởng'], ['draw', 'Bốc thăm'], ['winners', 'Người trúng giải'], ['look', 'Giao diện & sự kiện'], ['data', 'Dữ liệu']];
 
   function toast(t, bad) { var el = $('#toast'); el.textContent = t; el.className = 'toast' + (bad ? ' bad' : ''); clearTimeout(toast.t); toast.t = setTimeout(function () { el.className = 'toast hidden'; }, 2800); }
   function fail(e) { if (e && e.status === 401) return showLogin(); toast((e && e.error) || 'Có lỗi.', true); }
@@ -24,7 +24,7 @@
   /* ───────── shell ───────── */
   function shell() {
     root.innerHTML = '<div class="app"><aside class="side"><div class="logo"><img src="/images/ips-logo-white.png" alt="IPS"><small>YEP 2026 · Dashboard BTC</small></div>' +
-      TABS.map(function (t) { return '<button class="tab" data-tab="' + t[0] + '">' + t[1] + (t[0] === 'checkins' ? '<span class="count" id="cCount">0</span>' : '') + '</button>'; }).join('') +
+      TABS.map(function (t) { return '<button class="tab" data-tab="' + t[0] + '">' + t[1] + (t[0] === 'checkins' ? '<span class="count" id="cCount">0</span>' : t[0] === 'winners' ? '<span class="count" id="wCount">0</span>' : '') + '</button>'; }).join('') +
       '<div class="foot"><span class="live" id="liveDot"><i></i>Cập nhật trực tiếp</span><a href="/" target="_blank" rel="noopener">Mở trang check-in ↗</a><a href="/screen/" target="_blank" rel="noopener">Mở màn hình bình chọn ↗</a><button type="button" id="logout">Đăng xuất</button></div></aside>' +
       '<main class="content" id="main"></main></div>';
     $$('.side .tab').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.tab); }); });
@@ -45,8 +45,9 @@
   function render(full) {
     if (!D) return;
     $('#cCount').textContent = D.attendees.length;
+    $('#wCount').textContent = D.winners.filter(function (w) { return w.status === 'won'; }).length;
     var m = $('#main');
-    var V = { overview: vOverview, checkins: vCheckins, vote: vVote, prizes: vPrizes, draw: vDraw, look: vLook, data: vData }[tab];
+    var V = { overview: vOverview, checkins: vCheckins, vote: vVote, prizes: vPrizes, draw: vDraw, winners: vWinners, look: vLook, data: vData }[tab];
     V(m, full);
   }
   function head(title, sub, right) { return '<div class="head"><div><h1>' + title + '</h1>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div><div class="right">' + (right || '') + '</div></div>'; }
@@ -78,13 +79,14 @@
       m.innerHTML = head('Danh sách check-in', '', '<button class="btn" id="exp">Xuất Excel (CSV)</button><button class="btn primary" id="addBtn">+ Check-in hộ</button>') +
         '<div class="filters"><input class="i" id="q" placeholder="Tìm tên, mã, phòng ban, SĐT" value="' + esc(q) + '">' +
         ['', 'Dự án', 'Hội sở'].map(function (t) { return '<button class="chip' + (typeF === t ? ' on' : '') + '" data-t="' + t + '">' + (t || 'Tất cả') + '</button>'; }).join('') + '<span class="hint" id="cnt"></span></div>' +
-        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Loại hình</th><th>Phòng ban</th><th>Liên hệ</th><th>Check-in</th><th>Bình chọn</th><th></th></tr></thead><tbody id="tbl"></tbody></table></div>';
+        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Loại hình</th><th>Phòng ban</th><th>Liên hệ</th><th>Check-in</th><th>Bình chọn</th><th>Giải thưởng</th><th></th></tr></thead><tbody id="tbl"></tbody></table></div>';
       $('#q').addEventListener('input', function () { q = this.value; vCheckins(m, false); });
       $$('.filters .chip').forEach(function (b) { b.addEventListener('click', function () { typeF = b.dataset.t; $$('.filters .chip').forEach(function (x) { x.classList.toggle('on', x === b); }); vCheckins(m, false); }); });
       $('#exp').addEventListener('click', function () { location.href = '/admin/api/export.csv'; });
       $('#addBtn').addEventListener('click', drawerCheckin);
     }
     var perfs = {}; D.settings.performances.forEach(function (p) { perfs[p.id] = p; });
+    var wonBy = {}; D.winners.forEach(function (w) { wonBy[w.attendeeId] = w; });
     var s = q.toLowerCase().trim();
     var rows = D.attendees.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).filter(function (a) {
       return (!typeF || a.type === typeF) && (!s || [a.code, a.name, a.dept, a.email, a.phone].join(' ').toLowerCase().indexOf(s) >= 0);
@@ -96,8 +98,9 @@
         '<td><span class="pill ' + (a.type === 'Dự án' ? 'p-proj' : 'p-hq') + '">' + esc(a.type) + '</span></td><td>' + esc(a.dept) + '</td>' +
         '<td>' + esc(a.phone) + '<span class="s">' + esc(a.email) + '</span></td><td>' + esc(Y.fmtT(a.createdAt)) + '<span class="s">' + (a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in') + ' · mở ' + a.visits + ' lần</span></td>' +
         '<td>' + (p ? '<span class="pill p-ok">' + esc(p.name) + '</span>' : '<span class="pill p-dim">Chưa</span>') + '</td>' +
+        '<td>' + (wonBy[a.id] ? (wonBy[a.id].status === 'won' ? '<span class="pill p-warn">' + esc(wonBy[a.id].tierName) + '</span>' : '<span class="pill p-dim">Vắng khi bốc</span>') : '') + '</td>' +
         '<td><button class="x" data-del="' + esc(a.id) + '">Xoá</button></td></tr>';
-    }).join('') : '<tr><td colspan="8" class="empty">Không có dữ liệu.</td></tr>';
+    }).join('') : '<tr><td colspan="9" class="empty">Không có dữ liệu.</td></tr>';
     $$('#tbl [data-del]').forEach(function (b) {
       b.addEventListener('click', function () {
         var a = D.attendees.find(function (x) { return x.id === b.dataset.del; });
@@ -134,9 +137,11 @@
     var mx = Math.max.apply(null, [1].concat(P.map(function (p) { return counts[p.id] || 0; })));
     if (full || !dirty.perf) {
       m.innerHTML = head('Bình chọn văn nghệ', total + ' phiếu', '<a class="btn" href="/screen/" target="_blank" rel="noopener">Mở màn hình 3D ↗</a>') +
-        '<div class="panel" style="margin-bottom:16px"><div class="toggle"><button class="switch' + (s.votingOpen ? ' on' : '') + '" id="vt" aria-label="Mở/đóng bình chọn"></button><div><b style="font:600 16px var(--f-display)">' + (s.votingOpen ? 'Cổng bình chọn đang MỞ' : 'Cổng bình chọn đang ĐÓNG') + '</b><div class="hint">Mở khi MC mời khán giả bình chọn, đóng để chốt kết quả.</div></div></div></div>' +
+        '<div class="panel" style="margin-bottom:16px"><div class="toggle"><button class="switch' + (s.votingOpen ? ' on' : '') + '" id="vt" aria-label="Mở/đóng bình chọn"></button><div><b style="font:600 16px var(--f-display)">' + (s.votingOpen ? 'Cổng bình chọn đang MỞ' : 'Cổng bình chọn đang ĐÓNG') + '</b><div class="hint">Mở khi MC mời khán giả bình chọn, đóng để chốt kết quả.</div></div>' +
+        '<label class="f" style="margin-left:auto;max-width:200px">Số phiếu cho 1 tầng<input class="i" id="vpf" type="number" min="1" max="100" value="' + esc(s.votesPerFloor || 10) + '"></label></div></div>' +
         '<div class="grid2"><div class="panel"><h2>Kết quả hiện tại</h2><div class="bars" id="vres"></div></div>' +
         '<div class="panel"><h2>Danh sách tiết mục</h2><div class="ed" id="ped"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn" id="padd">+ Thêm tiết mục</button><button class="btn primary" id="psave">Lưu tiết mục</button><span class="hint" id="pmsg"></span></div></div></div>';
+      $('#vpf').addEventListener('change', function () { api('/admin/api/settings', { body: { votesPerFloor: this.value } }).then(function () { toast('Đã lưu: ' + $('#vpf').value + ' phiếu = 1 tầng'); load(); }).catch(fail); });
       $('#vt').addEventListener('click', function () { api('/admin/api/settings', { body: { votingOpen: !s.votingOpen } }).then(function () { toast(s.votingOpen ? 'Đã đóng bình chọn' : 'Đã mở bình chọn'); load(); }).catch(fail); });
       edP = JSON.parse(JSON.stringify(P)); drawPerf();
       $('#padd').addEventListener('click', function () { if (edP.length >= 8) return; edP.push({ id: 'p' + Date.now().toString(36), name: 'Tiết mục ' + (edP.length + 1), team: '', color: Y.PALETTE[edP.length % 6] }); dirty.perf = 1; drawPerf(); });
@@ -205,7 +210,7 @@
     var out = {}; D.winners.forEach(function (w) { out[w.attendeeId] = 1; });
     var pool = D.attendees.filter(function (a) { return !out[a.id]; });
     if (full || !$('#stageBox')) {
-      m.innerHTML = head('Bốc thăm may mắn', 'Người thắng được máy chủ chọn ngẫu nhiên trong toàn bộ danh sách đủ điều kiện, đường đua chỉ là phần trình diễn.', '<button class="btn" id="fsBtn">Toàn màn hình (F)</button><button class="btn primary" id="goBtn">Bắt đầu đua (Space)</button>') +
+      m.innerHTML = head('Bốc thăm may mắn', 'Người thắng được máy chủ chọn ngẫu nhiên trong toàn bộ danh sách đủ điều kiện, đường đua chỉ là phần trình diễn.', '<label class="f" style="flex-direction:row;display:flex;align-items:center;gap:8px;margin-right:6px">Thời gian đua<input class="i" id="raceSec" type="number" min="5" max="120" style="width:80px" value="' + esc(D.settings.raceSeconds || 20) + '">giây</label><button class="btn" id="fsBtn">Toàn màn hình (F)</button><button class="btn primary" id="goBtn">Vòng 1: Vòng loại (Space)</button>') +
         '<div class="draw-ctl" id="tiers"></div><div class="draw-grid"><div><div class="stage-box stage-wrap" id="stageBox"><div class="stage" id="stage"></div></div><p class="hint" id="poolInfo" style="margin-top:8px"></p></div>' +
         '<div class="panel wl" id="wl"></div></div>';
       var stage = $('#stage');
@@ -213,11 +218,14 @@
       race = YEPStage.race(stage);
       $('#goBtn').addEventListener('click', start);
       $('#fsBtn').addEventListener('click', fullscreen);
+      // the second click can also be a click anywhere on the stage (handy in full screen)
+      $('#stageBox').addEventListener('click', function () { if (race && race.waiting()) start(); });
+      $('#raceSec').addEventListener('change', function () { api('/admin/api/settings', { body: { raceSeconds: this.value } }).then(function () { toast('Đã lưu thời gian đua: ' + $('#raceSec').value + ' giây'); load(); }).catch(fail); });
     }
     if (!race.busy()) { race.setTier(t, left, D.settings); race.idle(sample(pool, 8).map(function (a) { return a.code; })); }
     $('#tiers').innerHTML = T.slice().reverse().map(function (x) { return '<button class="chip' + (x.id === drawTier ? ' on' : '') + (won(x.id) >= x.count ? ' done' : '') + '" data-t="' + esc(x.id) + '" style="--c:' + esc(x.color) + '"><i></i>' + esc(x.name) + ' · ' + won(x.id) + '/' + x.count + '</button>'; }).join('');
     $$('#tiers .chip').forEach(function (b) { b.addEventListener('click', function () { if (race.busy()) return; drawTier = b.dataset.t; vDraw(m, false); }); });
-    $('#goBtn').disabled = !t || left <= 0 || !pool.length || race.busy();
+    syncGo(t, left, pool.length);
     $('#poolInfo').textContent = pool.length + ' người đủ điều kiện (đã check-in, chưa trúng giải).';
     $('#wl').innerHTML = '<h2>Danh sách trúng thưởng</h2>' + T.map(function (x) {
       var ws = D.winners.filter(function (w) { return w.tier === x.id; }).sort(function (a, b) { return a.at - b.at; });
@@ -225,15 +233,33 @@
     }).join('');
   }
   function sample(a, n) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a.slice(0, n); }
+  /* The go button follows the draw: round 1 -> (hold on the finalists) -> round 2 */
+  var goTimer = null;
+  function syncGo(t, left, poolSize) {
+    var b = $('#goBtn'); if (!b || !race) return;
+    if (race.waiting()) { b.textContent = 'Vòng 2: Vào đường đua (Space)'; b.disabled = false; return; }
+    if (race.busy()) { b.textContent = 'Đang bốc thăm…'; b.disabled = true; return; }
+    b.textContent = 'Vòng 1: Vòng loại (Space)';
+    if (t !== undefined) b.disabled = !t || left <= 0 || !poolSize;
+  }
   function start() {
-    if (!race || race.busy()) return;
-    var b = $('#goBtn'); b.disabled = true;
+    if (!race) return;
+    if (race.waiting()) { race.next(); syncGo(); return; }   // 2nd click: into the race
+    if (race.busy() || $('#goBtn').disabled) return;
+    YEPSfx && YEPSfx.unlock();
+    var ms = Math.max(5, Math.min(120, +D.settings.raceSeconds || 20)) * 1000;
     api('/admin/api/draw', { body: { tier: drawTier } }).then(function (r) {
-      return race.qualify(r.wall || r.field, r.field).then(function () { return race.run(r.field, r.winner.code, 9000); }).then(function () { return race.reveal(r.winner, r.tier, true); }).then(function (a) {
-        if (a === 'absent') return api('/admin/api/winner', { body: { id: r.winner.id, status: 'absent' } }).then(function () { toast('Đã ghi vắng mặt. Bấm Bắt đầu để bốc lại.'); });
-        toast('Chúc mừng ' + r.winner.name + '!');
-      });
-    }).catch(fail).then(function () { load(); });
+      clearInterval(goTimer); goTimer = setInterval(syncGo, 250);
+      return race.qualify(r.wall || r.field, r.field)                       // 1st click: round 1, holds on the finalists
+        .then(function () { return race.run(r.field, r.winner.code, ms); })  // waits for the 2nd click, then races
+        .then(function () { return race.reveal(r.winner, r.tier, true); })
+        .then(function (a) {
+          // record the result; this is also the moment phones and screens are allowed to show it
+          return api('/admin/api/winner', { body: { id: r.winner.id, status: a === 'absent' ? 'absent' : 'won' } }).then(function () {
+            toast(a === 'absent' ? 'Đã ghi vắng mặt. Bấm Vòng 1 để bốc lại.' : 'Đã ghi nhận: ' + r.winner.code + ' · ' + r.winner.name + ' trúng ' + r.tier.name);
+          });
+        });
+    }).catch(fail).then(function () { clearInterval(goTimer); load(); });
   }
   function fullscreen() { var el = $('#stageBox'); if (!el) return; if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(function () {}); else if (document.exitFullscreen) document.exitFullscreen().catch(function () {}); }
   document.addEventListener('keydown', function (e) {
@@ -241,6 +267,37 @@
     if (e.code === 'Space') { e.preventDefault(); start(); }
     if (e.key === 'f' || e.key === 'F') fullscreen();
   });
+
+  function vWinners(m) {
+    var T = D.settings.prizes, byId = {}; D.attendees.forEach(function (a) { byId[a.id] = a; });
+    var order = {}; T.forEach(function (t, i) { order[t.id] = i; });
+    var W = D.winners.slice().sort(function (a, b) { return (order[a.tier] - order[b.tier]) || (a.at - b.at); });
+    var won = W.filter(function (w) { return w.status === 'won'; }).length, total = T.reduce(function (s2, t) { return s2 + (+t.count || 0); }, 0);
+    var out = {}; D.winners.forEach(function (w) { out[w.attendeeId] = 1; });
+    var eligible = D.attendees.filter(function (a) { return !out[a.id]; }).length;
+    var stat = function (w) { return w.status === 'absent' ? '<span class="pill p-dim">Vắng mặt</span>' : (w.revealed ? '<span class="pill p-ok">Đã trao</span>' : '<span class="pill p-warn">Chờ công bố</span>'); };
+    m.innerHTML = head('Người trúng giải', won + '/' + total + ' giải đã trao · ' + eligible + ' người còn trong danh sách bốc thăm', '<button class="btn" id="wExp">Xuất Excel (CSV)</button>') +
+      '<div class="banner warn" style="background:var(--info-bg);color:var(--info)">Người đã có tên ở đây (kể cả khi bị đánh vắng mặt) tự động bị loại khỏi mọi lượt bốc thăm sau.</div>' +
+      '<div class="kpis">' + T.map(function (t) { var n = D.winners.filter(function (w) { return w.tier === t.id && w.status === 'won'; }).length;
+        return '<div class="kpi" style="--c:' + esc(t.color) + '"><div class="l">' + esc(t.name) + '</div><div class="v">' + n + '/' + esc(t.count) + '</div><div class="s">' + esc(t.item) + '</div></div>'; }).join('') + '</div>' +
+      '<div class="table-wrap"><table><thead><tr><th>Giải</th><th>Mã</th><th>Họ và tên</th><th>Khối · Phòng ban</th><th>Liên hệ</th><th>Giờ bốc</th><th>Trạng thái</th><th></th></tr></thead><tbody>' +
+      (W.length ? W.map(function (w) {
+        var a = byId[w.attendeeId] || {};
+        return '<tr><td><b>' + esc(w.tierName) + '</b><span class="s">' + esc(w.item) + '</span></td><td class="code">' + esc(w.code) + '</td><td><b>' + esc(w.name) + '</b></td>' +
+          '<td>' + esc(w.type || '') + '<span class="s">' + esc(w.dept || '') + '</span></td><td>' + esc(a.phone || '—') + '<span class="s">' + esc(a.email || '') + '</span></td>' +
+          '<td>' + esc(Y.fmtT(w.at)) + '</td><td>' + stat(w) + '</td>' +
+          '<td>' + (w.status === 'absent' ? '<button class="x" data-st="won" data-id="' + esc(w.id) + '">Đổi thành đã trao</button>' : '<button class="x" data-st="absent" data-id="' + esc(w.id) + '">Đánh vắng mặt</button>') + '</td></tr>';
+      }).join('') : '<tr><td colspan="8" class="empty">Chưa có ai trúng giải.</td></tr>') + '</tbody></table></div>';
+    $('#wExp').addEventListener('click', function () { location.href = '/admin/api/export.csv'; });
+    $$('[data-st]', m).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var w = D.winners.find(function (x) { return x.id === b.dataset.id; });
+        var msg = b.dataset.st === 'absent' ? 'Đánh vắng mặt cho ' + w.code + ' · ' + w.name + '? Giải ' + w.tierName + ' sẽ được bốc lại; người này vẫn không tham gia các lượt sau.' : 'Đổi ' + w.code + ' · ' + w.name + ' thành đã nhận ' + w.tierName + '?';
+        if (!confirm(msg)) return;
+        api('/admin/api/winner', { body: { id: w.id, status: b.dataset.st } }).then(function () { toast('Đã cập nhật'); load(); }).catch(fail);
+      });
+    });
+  }
 
   function vLook(m, full) {
     if (!full && dirty.look) return;
