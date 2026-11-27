@@ -291,6 +291,7 @@
     load();
     Y.live(function (st) { ST = st; var dot = $('#liveDot'); if (dot) dot.classList.remove('off'); }, function () { clearTimeout(reloadT); reloadT = setTimeout(function () { if (!(race && race.busy())) load(); }, 300); });
   }
+  window.addEventListener('hashchange', function () { var h = location.hash.slice(1); if (h && h !== tab && $('#main')) go(h); });
   api('/admin/api/session').then(function (s) {
     if (s.admin) return boot();
     showLogin(s.configured ? '' : 'Máy chủ chưa đặt ADMIN_PASSWORD trong .env');

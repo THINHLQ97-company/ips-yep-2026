@@ -216,7 +216,8 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
   .t-yep::before { content: ''; position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(9,22,56,.35) 0%, rgba(9,22,56,0) 30%, rgba(9,22,56,0) 60%, rgba(9,22,56,.75) 100%), var(--bgm, url(../images/bg-mobile.jpg)) center bottom / 100% auto no-repeat, #041a46; }
   .yep-container { max-width: 100%; width: 100%; padding: 0 16px; }
   .yep-page { display: block; position: relative; inset: auto; overflow: visible; }
-  .yep-page > .yep-container { padding-top: 40px; padding-bottom: 40px; min-height: 0; }
+  .yep-page { scroll-margin-top: 0; }
+  .yep-page > .yep-container { padding-top: 76px; padding-bottom: 32px; min-height: 0; }
   .yep-page .rv { opacity: 1 !important; animation: none !important; }
   .topmenu { top: 12px; left: 12px; transform: none; flex-direction: column; align-items: flex-start; padding: 0; border-radius: 26px; overflow: hidden; }
   .topmenu.glass.ring::before { display: none; }
@@ -241,7 +242,7 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
   .btn-shine { width: min(100%, 320px); padding: 15px 24px; font-size: 17px; }
   .count-chip { padding: 8px 16px; font-size: 14px; } .count-chip b { font-size: 17px; }
   .facts-row { display: none !important; }
-  h2.gt { font-size: 32px; line-height: 40px; }
+  h2.gt { font-size: 28px; line-height: 36px; }
   .desc { font-size: 16px; line-height: 24px; }
   .form-box .form { padding: 22px 18px; }
   .form-box .box .item { padding: 22px 20px; }
