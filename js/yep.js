@@ -1,0 +1,194 @@
+/* IPS YEP 2026 — landing page: slide deck (MDF behaviour), check-in, ticket, voting, prizes */
+(function () {
+  'use strict';
+  var Y = window.YEP, $ = Y.$, $$ = Y.$$, esc = Y.esc;
+  var root = $('#yep'), pages = $$('.yep-page', root), order = pages.map(function (p) { return p.dataset.page; });
+  var mobile = window.matchMedia('(max-width: 900px)');
+  var st = null, me = null, myVote = null, wins = [], meLoaded = false, lastWinKey = '';
+
+  /* ───────── deck ───────── */
+  var active = 'hero', lock = false;
+  function go(name, push) {
+    if (order.indexOf(name) < 0) name = 'hero';
+    active = name;
+    $$('#topmenu li').forEach(function (li) { li.classList.toggle('active', li.dataset.go === name); });
+    if (mobile.matches) {
+      var el = document.getElementById(name);
+      if (el && push !== false) el.scrollIntoView({ behavior: Y.reduce ? 'auto' : 'smooth', block: 'start' });
+    } else {
+      pages.forEach(function (p) { var on = p.dataset.page === name; p.classList.toggle('active', on); if (on) p.scrollTop = 0; });
+    }
+    $('#scrollHint').hidden = name !== 'hero';
+    if (push !== false) { try { history.replaceState(null, '', name === 'hero' ? location.pathname : '#' + name); } catch (e) { /* file:// */ } }
+    $('#topmenu').classList.remove('open');
+  }
+  function step(d) {
+    var i = order.indexOf(active) + d;
+    if (i < 0 || i >= order.length || lock) return;
+    lock = true; setTimeout(function () { lock = false; }, 900);
+    go(order[i]);
+  }
+  root.addEventListener('wheel', function (e) {
+    if (mobile.matches || Math.abs(e.deltaY) < 12) return;
+    var p = $('.yep-page.active');
+    var atTop = p.scrollTop <= 0, atEnd = p.scrollTop + p.clientHeight >= p.scrollHeight - 2;
+    if (e.deltaY > 0 && atEnd) step(1); else if (e.deltaY < 0 && atTop) step(-1);
+  }, { passive: true });
+  document.addEventListener('keydown', function (e) {
+    if (mobile.matches || /INPUT|SELECT|TEXTAREA/.test((document.activeElement || {}).tagName)) return;
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') step(1);
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') step(-1);
+  });
+  root.addEventListener('click', function (e) {
+    var g = e.target.closest('[data-go]'); if (g) { e.preventDefault(); go(g.dataset.go); }
+  });
+  $('#topmenu .topmenu-toggle').addEventListener('click', function () {
+    var m = $('#topmenu'); m.classList.toggle('open'); this.setAttribute('aria-expanded', m.classList.contains('open'));
+  });
+  $('#scrollHint').addEventListener('click', function () { step(1); });
+  mobile.addEventListener && mobile.addEventListener('change', function () { go(active, false); });
+  // on phones, keep the menu highlight in sync with the section on screen
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      if (!mobile.matches) return;
+      es.forEach(function (en) { if (en.isIntersecting) { active = en.target.dataset.page; $$('#topmenu li').forEach(function (li) { li.classList.toggle('active', li.dataset.go === active); }); } });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    pages.forEach(function (p) { io.observe(p); });
+  }
+  Y.tilt(root, 12);
+
+  /* ───────── data ───────── */
+  function loadMe() {
+    return Y.api('/api/me').then(function (d) { me = d.me; myVote = d.vote; wins = d.wins || []; meLoaded = true; render(); })
+      .catch(function () { meLoaded = true; render(); });
+  }
+  function onStatus(s) {
+    var first = !st; st = s;
+    var key = (s.winners || []).map(function (w) { return w.id + w.status; }).join();
+    if (!first && key !== lastWinKey && me) loadMe();
+    lastWinKey = key;
+    render();
+  }
+
+  /* ───────── render ───────── */
+  function render() {
+    if (!st) return;
+    $$('[data-f]').forEach(function (el) { var v = st[el.dataset.f]; if (v) el.textContent = v; });
+    if (st.bg && Y.safeImg(st.bg)) root.style.setProperty('--bg', 'url("' + st.bg + '")');
+    if (st.bgM && Y.safeImg(st.bgM)) root.style.setProperty('--bgm', 'url("' + st.bgM + '")');
+    Y.fx.splitTitle($('#themeTitle'), st.theme || 'The Other Way');
+    var facts = [];
+    if (st.eventDate) facts.push(['Thời gian', st.eventDate]);
+    if (st.venue) facts.push(['Địa điểm', st.venue]);
+    $('#facts').hidden = !facts.length;
+    $('#facts').innerHTML = facts.map(function (f) { return '<span class="glass ring"><b>' + esc(f[0]) + '</b>' + esc(f[1]) + '</span>'; }).join('');
+    Y.fx.countTo($('#liveCount'), st.checkins);
+    $('#heroCta').textContent = me ? 'Xem vé của bạn · ' + me.code : 'Check-in ngay';
+    renderCheckin(); renderVote(); renderPrizes();
+  }
+
+  var ckMode = '', want = 'form';   // what the check-in panel shows now / should show
+  function renderCheckin() {
+    var box = $('#ckMain');
+    var mode = !meLoaded ? 'load' : me ? 'ticket' : want;
+    if (mode === 'ticket') { box.innerHTML = ticketHTML(); ckMode = 'ticket'; return; }
+    if (mode === ckMode) return;          // keep what the visitor is typing
+    ckMode = mode;
+    if (mode === 'load') { box.innerHTML = '<p class="lead">Đang kiểm tra thông tin check-in…</p>'; return; }
+    if (mode === 'recover') {
+      box.innerHTML = '<h3>Tìm lại vé của bạn</h3><p class="lead">Đã check-in trên máy khác? Nhập đúng số điện thoại và email đã dùng.</p>' +
+        '<form id="rcF" novalidate><div class="formrow"><label class="label" for="rcPhone">Số điện thoại</label><input id="rcPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx"></div>' +
+        '<div class="formrow"><label class="label" for="rcEmail">Email</label><input id="rcEmail" type="email" inputmode="email" autocomplete="email" placeholder="ten@ipscorp.vn"></div>' +
+        '<p class="form-err" id="rcErr"></p><div class="actions"><button type="button" class="linkbtn" data-mode="form">Quay lại check-in</button><button class="cta" type="submit">Tìm vé</button></div></form>';
+      $('#rcF').addEventListener('submit', function (e) {
+        e.preventDefault(); var b = this.querySelector('[type=submit]'); b.disabled = true;
+        Y.api('/api/recover', { body: { phone: $('#rcPhone').value, email: $('#rcEmail').value } })
+          .then(function () { return loadMe(); }).then(function () { Y.toast('Đã tìm thấy vé của bạn'); })
+          .catch(function (er) { $('#rcErr').textContent = er.error; b.disabled = false; });
+      });
+    } else {
+      box.innerHTML = '<h3>Thông tin của bạn</h3><p class="lead">Điền thông tin để nhận <b style="color:var(--gold)">mã số may mắn</b> cho vòng bốc thăm.</p>' +
+        '<form id="ckF" novalidate autocomplete="on">' +
+        '<div class="formrow"><label class="label" for="ckName">Họ và tên <em>*</em></label><input id="ckName" autocomplete="name" placeholder="Nguyễn Văn A"></div>' +
+        '<div class="formrow"><span class="label">Loại hình <em>*</em></span><div class="seg">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="ckType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
+        '<div class="formrow"><label class="label" for="ckDept">Phòng ban <em>*</em></label><select id="ckDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="formrow"><div class="two"><div><label class="label" for="ckEmail">Email <em>*</em></label><input id="ckEmail" type="email" inputmode="email" autocomplete="email" placeholder="ten@ipscorp.vn"></div>' +
+        '<div><label class="label" for="ckPhone">Số điện thoại <em>*</em></label><input id="ckPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx"></div></div></div>' +
+        '<input type="text" name="website" id="ckWeb" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">' +
+        '<p class="form-err" id="ckErr"></p>' +
+        '<div class="actions"><button type="button" class="linkbtn" data-mode="recover">Đã check-in trên máy khác?</button><button class="cta" type="submit">Check-in &amp; nhận mã số</button></div></form>';
+      $('#ckF').addEventListener('submit', submitCheckin);
+    }
+    $$('[data-mode]', box).forEach(function (b) { b.addEventListener('click', function () { want = b.dataset.mode; renderCheckin(); }); });
+  }
+
+  function submitCheckin(e) {
+    e.preventDefault();
+    var f = this, b = f.querySelector('[type=submit]'), out = $('#ckErr');
+    var v = { name: $('#ckName').value, type: (f.querySelector('input[name=ckType]:checked') || {}).value, dept: $('#ckDept').value, email: $('#ckEmail').value, phone: $('#ckPhone').value, website: $('#ckWeb').value };
+    if (v.name.trim().length < 2) return (out.textContent = 'Vui lòng nhập họ và tên.');
+    if (!v.dept) return (out.textContent = 'Vui lòng chọn phòng ban.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) return (out.textContent = 'Email chưa đúng định dạng.');
+    if (v.phone.replace(/\D/g, '').length < 9) return (out.textContent = 'Số điện thoại chưa đúng.');
+    out.textContent = ''; b.disabled = true; b.textContent = 'Đang cấp mã…';
+    Y.api('/api/checkin', { body: v }).then(function (d) {
+      Y.toast(d.existing ? 'Bạn đã check-in trước đó · mã ' + d.me.code : 'Check-in thành công! Mã của bạn: ' + d.me.code);
+      return loadMe();
+    }).catch(function (er) { out.textContent = er.error; b.disabled = false; b.textContent = 'Check-in & nhận mã số'; });
+  }
+
+  function ticketHTML() {
+    var perf = myVote && st && (st.performances || []).find(function (p) { return p.id === myVote.perf; });
+    var hist = (me.history || []).slice(0, 5).map(Y.fmtT).join(' · ');
+    return '<div class="ticket-scene"><div class="ticket tilt">' +
+      '<div class="layer" style="transform:translateZ(-8px)"></div><div class="layer" style="transform:translateZ(-16px);background:#0a1f55"></div><div class="layer" style="transform:translateZ(-24px);background:#071840"></div>' +
+      '<div class="face"><div class="lbl">Mã số may mắn của bạn</div><div class="num">' + esc(me.code) + '</div>' +
+      '<div class="who">' + esc(me.name) + '</div><div class="meta">' + esc(me.type) + ' · ' + esc(me.dept) + '</div>' +
+      '<div class="cut"></div><div class="row"><span class="pill"><i></i>Check-in ' + esc(Y.fmtT(me.createdAt)) + '</span>' +
+      (perf ? '<span class="pill" style="--c:' + esc(perf.color) + '"><i></i>Đã bình chọn: ' + esc(perf.name) + '</span>' : '') + '</div>' +
+      wins.map(function (w) { return '<div class="won">Chúc mừng! Bạn trúng ' + esc(w.tierName) + ': ' + esc(w.item) + '. Mời bạn lên sân khấu nhận quà.</div>'; }).join('') +
+      '<p class="hist">Lịch sử truy cập: ' + esc(hist) + '</p></div></div></div>' +
+      '<div class="actions" style="margin-top:28px;justify-content:flex-start"><button type="button" class="cta" data-go="vote">Bình chọn văn nghệ</button><button type="button" class="cta line" data-go="prizes">Xem giải thưởng</button></div>';
+  }
+
+  function renderVote() {
+    var open = !!st.votingOpen, P = st.performances || [], can = open && me;
+    var pill = $('#voteStatus'); pill.className = 'status-pill glass' + (open ? ' open' : '');
+    pill.innerHTML = '<i></i>' + (open ? 'Cổng bình chọn đang mở' : 'Cổng bình chọn đang đóng');
+    $('#voteNote').innerHTML = !meLoaded ? '' : !me ? '<div class="note-box glass ring">Bạn cần check-in trước khi bình chọn. <button type="button" class="linkbtn" data-go="checkin">Check-in ngay</button></div>'
+      : (myVote ? '<div class="note-box glass ring">Đã ghi nhận phiếu của bạn. ' + (open ? 'Bạn vẫn có thể đổi ý trước khi cổng đóng.' : '') + '</div>' : '');
+    var list = $('#voteList'); list.style.setProperty('--n', Math.min(Math.max(P.length, 1), 4));
+    list.innerHTML = P.length ? P.map(function (p, i) {
+      var sel = myVote && myVote.perf === p.id;
+      return '<button type="button" class="card3d glass ring tilt' + (sel ? ' sel' : '') + '" style="--c:' + esc(p.color) + '" data-perf="' + esc(p.id) + '"' + (can ? '' : ' disabled') + '>' +
+        '<span class="bar"></span><span class="ix">' + String(i + 1).padStart(2, '0') + '</span><h3>' + esc(p.name) + '</h3><span class="team">' + esc(p.team) + '</span>' +
+        '<span class="pick">' + (sel ? '✓ Bạn đã chọn tiết mục này' : can ? 'Chọn tiết mục này →' : '') + '</span></button>';
+    }).join('') : '<div class="note-box glass ring">BTC sẽ cập nhật danh sách tiết mục sớm.</div>';
+    $$('[data-perf]', list).forEach(function (b) {
+      b.addEventListener('click', function () {
+        if (!can || (myVote && myVote.perf === b.dataset.perf)) return;
+        Y.api('/api/vote', { body: { perf: b.dataset.perf } }).then(function (d) { myVote = { perf: d.perf }; Y.toast('Đã ghi nhận bình chọn!'); render(); })
+          .catch(function (er) { Y.toast(er.error); });
+      });
+    });
+  }
+
+  function renderPrizes() {
+    var T = st.prizes || [], W = st.winners || [];
+    $('#prizeMini').innerHTML = T.map(function (t) { return '<div style="--c:' + esc(t.color) + '"><div class="pic">' + Y.prizePic(t) + '</div><b>' + esc(t.name) + '</b>' + esc(t.count) + ' × ' + esc(t.item) + '</div>'; }).join('');
+    $('#prizeList').innerHTML = T.map(function (t) {
+      var ws = W.filter(function (w) { return w.tier === t.id && w.status === 'won'; });
+      return '<div class="prize glass ring tilt" style="--c:' + esc(t.color) + '"><div class="pic">' + Y.prizePic(t) + '</div><div><div class="tn">' + esc(t.name) + '</div><b>' + esc(t.item) + '</b><span>' + esc(t.count) + ' giải</span>' +
+        (ws.length ? '<div class="wn">Đã trao: ' + ws.map(function (w) { return esc(w.code) + ' · ' + esc(w.name); }).join(', ') + '</div>' : '') + '</div></div>';
+    }).join('');
+  }
+
+  /* ───────── boot ───────── */
+  Y.fx.splitTitle($('#themeTitle'), 'The Other Way');
+  window.addEventListener('hashchange', function () { var h = location.hash.slice(1); if (order.indexOf(h) >= 0 && h !== active) go(h, mobile.matches); });
+  var start = (location.hash || '').slice(1);
+  go(order.indexOf(start) >= 0 ? start : 'hero', false);
+  if (mobile.matches && start && document.getElementById(start)) setTimeout(function () { document.getElementById(start).scrollIntoView(); }, 300);
+  loadMe();
+  Y.live(onStatus);
+})();

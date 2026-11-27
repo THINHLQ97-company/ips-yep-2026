@@ -1,0 +1,409 @@
+'use strict';
+/* IPS Year End Party 2026 server: check-in page, voting, lucky draw, live screens and the BTC dashboard.
+   Same shape as MDF 2027: plain Node http, JSON store, no framework, no database, no npm dependencies.
+   Live updates to phones and the big screen use Server-Sent Events (/api/stream). */
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { createStore } = require('./store');
+
+const ROOT = path.resolve(__dirname, '..');
+
+/* ── env ── */
+(function loadEnv() {
+  const f = path.join(ROOT, '.env');
+  if (!fs.existsSync(f)) return;
+  for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+})();
+const env = process.env;
+const PORT = Number(env.PORT || 8000);
+const BASE_URL = (env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+const DATA_DIR = path.resolve(ROOT, env.DATA_DIR || 'data');
+const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const ADMIN_PASSWORD = env.ADMIN_PASSWORD || '';
+if (!ADMIN_PASSWORD) console.warn('[!] ADMIN_PASSWORD chưa đặt: dashboard đang khoá. Thêm ADMIN_PASSWORD vào .env rồi khởi động lại.');
+const REVEAL_MS = 18000;   // a fresh draw stays hidden from phones/screens until both rounds (wall + race) have played
+
+const store = createStore(path.join(DATA_DIR, 'db.json'));
+const db = store.db;
+if (!db.auth.secret) { db.auth.secret = crypto.randomBytes(32).toString('hex'); store.save(); }
+// Changing ADMIN_PASSWORD signs every dashboard session out.
+const SESSION_SECRET = crypto.createHash('sha256').update((env.SESSION_SECRET || db.auth.secret) + '|' + ADMIN_PASSWORD).digest('hex');
+
+const DEPTS = ['Marketing', 'Human Resource', 'Operation', 'DEV', 'IT', 'BOD', 'Kế toán – Tài chính', 'Kinh doanh', 'Hành chính – Pháp chế', 'Kỹ thuật – Bảo trì', 'Chăm sóc khách hàng', 'An ninh – Vệ sinh', 'Khác'];
+const TYPES = ['Dự án', 'Hội sở'];
+
+/* ── helpers ── */
+const now = () => Date.now();
+const token = (n = 24) => crypto.randomBytes(n).toString('base64url');
+const pad3 = (n) => String(n).padStart(3, '0');
+const str = (v, max = 120) => String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, max);
+const normPhone = (p) => String(p || '').replace(/\D/g, '').replace(/^84/, '0');
+const isColor = (c) => /^#[0-9a-f]{6}$/i.test(String(c || ''));
+const isUpload = (u) => /^\/uploads\/[\w.-]+$/.test(String(u || ''));
+
+function validate(b) {
+  const v = { name: str(b.name, 80), type: str(b.type, 20), dept: str(b.dept, 60), email: str(b.email, 120).toLowerCase(), phone: str(b.phone, 20) };
+  if (v.name.length < 2) return [null, 'Vui lòng nhập họ và tên.'];
+  if (!TYPES.includes(v.type)) return [null, 'Vui lòng chọn loại hình.'];
+  if (!DEPTS.includes(v.dept)) return [null, 'Vui lòng chọn phòng ban.'];
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) return [null, 'Email chưa đúng định dạng.'];
+  v.phoneNorm = normPhone(v.phone);
+  if (v.phoneNorm.length < 9 || v.phoneNorm.length > 12) return [null, 'Số điện thoại chưa đúng.'];
+  return [v, ''];
+}
+function freeCode() {
+  const used = new Set(db.attendees.map((a) => a.code));
+  const free = [];
+  for (let i = 1; i <= 999; i++) { const c = pad3(i); if (!used.has(c)) free.push(c); }
+  if (!free.length) throw Object.assign(new Error('Đã hết mã 001–999.'), { status: 409 });
+  return free[crypto.randomInt(free.length)];
+}
+function createAttendee(v, source, sample) {
+  const t = now();
+  const a = { id: token(9), token: token(24), code: freeCode(), name: v.name, type: v.type, dept: v.dept, email: v.email, phone: v.phone, phoneNorm: v.phoneNorm,
+    source, sample: !!sample, createdAt: t, lastSeen: t, visits: [t] };
+  db.attendees.push(a);
+  return a;
+}
+const pub = (a) => a && { id: a.id, code: a.code, name: a.name, type: a.type, dept: a.dept, createdAt: a.createdAt };
+const revealed = () => db.winners.filter((w) => w.at <= now() - REVEAL_MS);
+
+function publicStatus() {
+  const s = db.settings, votes = {};
+  for (const v of Object.values(db.votes)) votes[v.perf] = (votes[v.perf] || 0) + 1;
+  return {
+    eventName: s.eventName, theme: s.theme, themeVi: s.themeVi, eventDate: s.eventDate, venue: s.venue,
+    votingOpen: s.votingOpen, bg: s.bg, bgM: s.bgM, bgStage: s.bgStage,
+    performances: s.performances, prizes: s.prizes, votes, totalVotes: Object.keys(db.votes).length,
+    winners: revealed().map((w) => ({ id: w.id, code: w.code, name: w.name, dept: w.dept, tier: w.tier, tierName: w.tierName, item: w.item, at: w.at, status: w.status })),
+    checkins: db.attendees.length, publicUrl: (s.publicUrl || BASE_URL).replace(/\/$/, '')
+  };
+}
+
+/* ── live updates (SSE) ── */
+const clients = new Set();
+let pushTimer = null, adminDirty = false;
+function changed(admin) {
+  adminDirty = adminDirty || !!admin;
+  store.save();
+  if (pushTimer) return;
+  pushTimer = setTimeout(() => {
+    pushTimer = null;
+    const msg = `event: status\ndata: ${JSON.stringify(publicStatus())}\n\n`;
+    const adm = adminDirty ? 'event: admin\ndata: {}\n\n' : ''; adminDirty = false;
+    for (const c of clients) { c.res.write(msg); if (adm && c.admin) c.res.write(adm); }
+  }, 150);
+}
+setInterval(() => { for (const c of clients) c.res.write(': ping\n\n'); }, 25e3).unref();
+
+/* ── rate limiting (in memory) ── */
+const buckets = new Map();
+function limited(key, max, windowMs) {
+  const t = now(), b = (buckets.get(key) || []).filter((x) => t - x < windowMs);
+  b.push(t); buckets.set(key, b);
+  return b.length > max;
+}
+setInterval(() => { const t = now(); for (const [k, v] of buckets) if (!v.some((x) => t - x < 3600e3)) buckets.delete(k); }, 600e3).unref();
+
+/* ── HTTP plumbing ── */
+function clientIp(req) { return (env.TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '') || req.socket.remoteAddress || ''; }
+function send(res, status, body, headers) {
+  const isStr = typeof body === 'string' || Buffer.isBuffer(body);
+  res.writeHead(status, Object.assign({
+    'Content-Type': isStr ? 'text/html; charset=utf-8' : 'application/json; charset=utf-8',
+    'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'Cache-Control': 'no-store'
+  }, headers || {}));
+  res.end(isStr ? body : JSON.stringify(body));
+}
+function readBody(req, max) {
+  return new Promise((resolve, reject) => {
+    let size = 0; const chunks = [];
+    req.on('data', (c) => { size += c.length; if (size > max) { reject(Object.assign(new Error('Tệp quá lớn.'), { status: 413 })); req.destroy(); } else chunks.push(c); });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+async function readJson(req, max = 64e3) {
+  const buf = await readBody(req, max);
+  try { return buf.length ? JSON.parse(buf.toString('utf8')) : {}; } catch (e) { throw Object.assign(new Error('Invalid JSON'), { status: 400 }); }
+}
+function cookie(req, name) { const m = String(req.headers.cookie || '').match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)')); return m ? decodeURIComponent(m[1]) : ''; }
+const cookieFlags = BASE_URL.startsWith('https') ? '; Secure' : '';
+const setCookie = (name, val, days) => `${name}=${encodeURIComponent(val)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.round(days * 86400)}${cookieFlags}`;
+const meOf = (req) => { const t = cookie(req, 'yep_t'); return t ? db.attendees.find((a) => a.token === t) : null; };
+
+/* ── admin session (signed cookie, shared BTC password) ── */
+function sign(v) { return crypto.createHmac('sha256', SESSION_SECRET).update(v).digest('base64url'); }
+function makeSession() { const v = Buffer.from(JSON.stringify({ e: now() + 24 * 3600e3 })).toString('base64url'); return v + '.' + sign(v); }
+function isAdmin(req) {
+  if (!ADMIN_PASSWORD) return false;
+  const [v, sig] = cookie(req, 'yep_admin').split('.');
+  if (!v || !sig) return false;
+  const exp = sign(v);
+  if (sig.length !== exp.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return false;
+  try { return JSON.parse(Buffer.from(v, 'base64url').toString()).e > now(); } catch (e) { return false; }
+}
+const sameSecret = (a, b) => crypto.timingSafeEqual(crypto.createHash('sha256').update(String(a)).digest(), crypto.createHash('sha256').update(String(b)).digest());
+
+/* ── public API ── */
+async function api(req, res, url) {
+  const p = url.pathname, ip = clientIp(req);
+  if (p === '/api/status' && req.method === 'GET') {
+    if (limited('status:' + ip, 240, 60e3)) return send(res, 429, { error: 'Slow down.' });
+    return send(res, 200, publicStatus());
+  }
+  if (p === '/api/stream' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+    const c = { res, admin: isAdmin(req) };
+    clients.add(c);
+    res.write(`retry: 3000\nevent: status\ndata: ${JSON.stringify(publicStatus())}\n\n`);
+    req.on('close', () => clients.delete(c));
+    return;
+  }
+  if (p === '/api/me' && req.method === 'GET') {
+    const a = meOf(req);
+    if (!a) return send(res, 200, { me: null });
+    const t = now();
+    if (t - (a.lastSeen || 0) > 10 * 60e3) { a.lastSeen = t; a.visits.push(t); if (a.visits.length > 50) a.visits.shift(); store.save(); }
+    const vote = db.votes[a.id] || null;
+    const wins = revealed().filter((w) => w.attendeeId === a.id && w.status === 'won').map((w) => ({ tierName: w.tierName, item: w.item, at: w.at }));
+    return send(res, 200, { me: Object.assign(pub(a), { email: a.email, phone: a.phone, visits: a.visits.length, history: a.visits.slice(-6).reverse() }), vote, wins });
+  }
+  if (p === '/api/checkin' && req.method === 'POST') {
+    if (limited('checkin:' + ip, 30, 600e3)) return send(res, 429, { error: 'Thao tác quá nhanh, vui lòng thử lại sau ít phút hoặc liên hệ bàn BTC.' });
+    const b = await readJson(req);
+    if (b.website) return send(res, 400, { error: 'Vui lòng thử lại.' });   // bot trap
+    const cur = meOf(req);
+    if (cur) return send(res, 200, { me: pub(cur), existing: true });
+    const [v, err] = validate(b);
+    if (!v) return send(res, 400, { error: err });
+    const dup = db.attendees.find((a) => a.phoneNorm === v.phoneNorm);
+    if (dup) {
+      if (dup.email === v.email) return send(res, 200, { me: pub(dup), existing: true }, { 'Set-Cookie': setCookie('yep_t', dup.token, 30) });
+      return send(res, 409, { error: 'Số điện thoại này đã check-in với email khác. Vui lòng liên hệ bàn BTC.' });
+    }
+    const a = createAttendee(v, 'self');
+    store.audit('check-in', a.name, a.code);
+    changed(true);
+    return send(res, 200, { me: pub(a) }, { 'Set-Cookie': setCookie('yep_t', a.token, 30) });
+  }
+  if (p === '/api/recover' && req.method === 'POST') {
+    if (limited('recover:' + ip, 10, 600e3)) return send(res, 429, { error: 'Thử quá nhiều lần, vui lòng đợi ít phút.' });
+    const b = await readJson(req);
+    const pn = normPhone(b.phone), em = str(b.email, 120).toLowerCase();
+    const a = pn && em ? db.attendees.find((x) => x.phoneNorm === pn && x.email === em) : null;
+    if (!a) return send(res, 404, { error: 'Không tìm thấy. Kiểm tra lại số điện thoại và email đã dùng khi check-in.' });
+    return send(res, 200, { me: pub(a) }, { 'Set-Cookie': setCookie('yep_t', a.token, 30) });
+  }
+  if (p === '/api/vote' && req.method === 'POST') {
+    if (limited('vote:' + ip, 60, 60e3)) return send(res, 429, { error: 'Thao tác quá nhanh.' });
+    const a = meOf(req);
+    if (!a) return send(res, 401, { error: 'Bạn cần check-in trước khi bình chọn.' });
+    if (!db.settings.votingOpen) return send(res, 409, { error: 'Cổng bình chọn đang đóng.' });
+    const b = await readJson(req), perf = str(b.perf, 40);
+    if (!db.settings.performances.some((x) => x.id === perf)) return send(res, 400, { error: 'Tiết mục không hợp lệ.' });
+    db.votes[a.id] = { perf, at: now() };
+    changed(true);
+    return send(res, 200, { ok: true, perf });
+  }
+  send(res, 404, { error: 'Not found.' });
+}
+
+/* ── admin API ── */
+const ARTS = ['phone', 'tv', 'fridge', 'cooker', 'kettle', 'powerbank', 'gift'];
+const IMG = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' };
+const FN = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Võ', 'Đặng', 'Bùi', 'Đỗ', 'Huỳnh'], MN = ['Văn', 'Thị', 'Minh', 'Ngọc', 'Quốc', 'Thanh', 'Gia', 'Hoài'], LN = ['An', 'Bình', 'Châu', 'Dũng', 'Giang', 'Hà', 'Khoa', 'Linh', 'My', 'Nam', 'Phúc', 'Quân', 'Sơn', 'Trâm', 'Uyên', 'Vy'];
+
+function adminData() {
+  return {
+    settings: db.settings, defaultUrl: BASE_URL,
+    attendees: db.attendees.map((a) => ({ id: a.id, code: a.code, name: a.name, type: a.type, dept: a.dept, email: a.email, phone: a.phone, source: a.source, sample: a.sample,
+      createdAt: a.createdAt, lastSeen: a.lastSeen, visits: a.visits.length, perf: (db.votes[a.id] || {}).perf || '' })),
+    winners: db.winners, audit: db.audit.slice(0, 100)
+  };
+}
+function csv() {
+  const perfs = Object.fromEntries(db.settings.performances.map((p) => [p.id, p.name]));
+  const q = (s) => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+  const head = ['Mã', 'Họ và tên', 'Loại hình', 'Phòng ban', 'Email', 'SĐT', 'Nguồn', 'Giờ check-in', 'Số lần mở trang', 'Bình chọn', 'Giải thưởng'];
+  const rows = [...db.attendees].sort((a, b) => a.code.localeCompare(b.code)).map((a) => [a.code, a.name, a.type, a.dept, a.email, a.phone, a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in',
+    new Date(a.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), a.visits.length, perfs[(db.votes[a.id] || {}).perf] || '',
+    db.winners.filter((w) => w.attendeeId === a.id && w.status === 'won').map((w) => w.tierName + ' – ' + w.item).join('; ')].map(q).join(','));
+  return '﻿' + [head.map(q).join(','), ...rows].join('\r\n');
+}
+
+async function admin(req, res, url) {
+  const p = url.pathname, ip = clientIp(req);
+  if (p === '/admin/api/session' && req.method === 'GET') return send(res, 200, { admin: isAdmin(req), configured: !!ADMIN_PASSWORD });
+  if (p === '/admin/api/login' && req.method === 'POST') {
+    if (limited('login:' + ip, 8, 900e3)) return send(res, 429, { error: 'Sai quá nhiều lần. Vui lòng đợi 15 phút.' });
+    if (!ADMIN_PASSWORD) return send(res, 503, { error: 'Máy chủ chưa đặt ADMIN_PASSWORD.' });
+    const b = await readJson(req);
+    if (!sameSecret(b.password || '', ADMIN_PASSWORD)) { store.audit('login failed', ip); store.save(); return send(res, 401, { error: 'Sai mật khẩu.' }); }
+    store.audit('login', ip); store.save();
+    return send(res, 200, { ok: true }, { 'Set-Cookie': setCookie('yep_admin', makeSession(), 1) });
+  }
+  if (p === '/admin/api/logout' && req.method === 'POST') return send(res, 200, { ok: true }, { 'Set-Cookie': setCookie('yep_admin', '', 0) });
+  if (!isAdmin(req)) return send(res, 401, { error: 'Phiên đăng nhập đã hết hạn.' });
+
+  if (p === '/admin/api/data' && req.method === 'GET') return send(res, 200, adminData());
+  if (p === '/admin/api/export.csv' && req.method === 'GET') return send(res, 200, csv(), { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="ips-yep-2026-checkin.csv"' });
+
+  if (p === '/admin/api/checkin' && req.method === 'POST') {
+    const [v, err] = validate(await readJson(req));
+    if (!v) return send(res, 400, { error: err });
+    const dup = db.attendees.find((a) => a.phoneNorm === v.phoneNorm);
+    if (dup) return send(res, 409, { error: `SĐT đã check-in: ${dup.name} · mã ${dup.code}` });
+    const a = createAttendee(v, 'btc');
+    store.audit('BTC check-in hộ', 'BTC', a.code + ' ' + a.name);
+    changed(true);
+    return send(res, 200, { me: pub(a) });
+  }
+  if (p === '/admin/api/attendee/delete' && req.method === 'POST') {
+    const { id } = await readJson(req);
+    const a = db.attendees.find((x) => x.id === id);
+    if (!a) return send(res, 404, { error: 'Không tìm thấy.' });
+    db.attendees = db.attendees.filter((x) => x.id !== id);
+    delete db.votes[id];
+    store.audit('xoá check-in', 'BTC', a.code + ' ' + a.name);
+    changed(true);
+    return send(res, 200, { ok: true });
+  }
+  if (p === '/admin/api/settings' && req.method === 'POST') {
+    const b = await readJson(req), s = db.settings;
+    for (const k of ['eventName', 'theme', 'themeVi', 'eventDate', 'venue']) if (k in b) s[k] = str(b[k], 120);
+    if ('publicUrl' in b) { const u = str(b.publicUrl, 300); if (u && !/^https?:\/\//.test(u)) return send(res, 400, { error: 'Link phải bắt đầu bằng https://' }); s.publicUrl = u; }
+    if ('votingOpen' in b) s.votingOpen = !!b.votingOpen;
+    for (const k of ['bg', 'bgM', 'bgStage']) if (k in b) s[k] = isUpload(b[k]) ? b[k] : '';
+    if (Array.isArray(b.performances)) s.performances = b.performances.slice(0, 8).map((x, i) => ({ id: str(x.id, 40) || 'p' + token(4), name: str(x.name, 80) || 'Tiết mục ' + (i + 1), team: str(x.team, 80), color: isColor(x.color) ? x.color : '#ffc928' }));
+    if (Array.isArray(b.prizes)) s.prizes = b.prizes.slice(0, 20).map((x) => ({ id: str(x.id, 40) || 'z' + token(4), name: str(x.name, 60) || 'Giải', item: str(x.item, 80), count: Math.max(1, Math.min(500, parseInt(x.count, 10) || 1)),
+      art: ARTS.includes(x.art) ? x.art : 'gift', color: isColor(x.color) ? x.color : '#ffc928', img: isUpload(x.img) ? x.img : '' }));
+    store.audit('lưu cài đặt', 'BTC', Object.keys(b).join(', '));
+    changed(true);
+    return send(res, 200, { ok: true, settings: s });
+  }
+  if (p === '/admin/api/upload' && req.method === 'POST') {
+    const ext = IMG[String(req.headers['content-type'] || '').split(';')[0]];
+    if (!ext) return send(res, 400, { error: 'Chỉ nhận ảnh PNG, JPG hoặc WEBP.' });
+    const buf = await readBody(req, 12e6);
+    if (!buf.length) return send(res, 400, { error: 'Tệp rỗng.' });
+    const name = Date.now().toString(36) + '-' + token(6) + ext;
+    fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+    return send(res, 200, { url: '/uploads/' + name });
+  }
+  if (p === '/admin/api/draw' && req.method === 'POST') {
+    const b = await readJson(req), tier = db.settings.prizes.find((t) => t.id === b.tier);
+    if (!tier) return send(res, 400, { error: 'Vui lòng chọn giải.' });
+    if (db.winners.filter((w) => w.tier === tier.id && w.status === 'won').length >= tier.count) return send(res, 409, { error: 'Giải này đã trao đủ.' });
+    const out = new Set(db.winners.map((w) => w.attendeeId));
+    const pool = db.attendees.filter((a) => !out.has(a.id));
+    if (!pool.length) return send(res, 409, { error: 'Không còn người đủ điều kiện.' });
+    const w = pool[crypto.randomInt(pool.length)];   // the winner is chosen here, on the server, before any animation
+    const others = pool.filter((a) => a.id !== w.id);
+    for (let i = others.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [others[i], others[j]] = [others[j], others[i]]; }
+    const field = [w, ...others.slice(0, 7)].map((a) => a.code);
+    for (let i = field.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [field[i], field[j]] = [field[j], field[i]]; }
+    const row = { id: token(9), attendeeId: w.id, code: w.code, name: w.name, dept: w.dept, type: w.type, tier: tier.id, tierName: tier.name, item: tier.item, at: now(), status: 'won' };
+    db.winners.push(row);
+    store.audit('bốc thăm', 'BTC', `${tier.name}: ${w.code} ${w.name} (trong ${pool.length} người)`);
+    changed(true);
+    setTimeout(() => changed(true), REVEAL_MS + 300);
+    // round 1 wall: every eligible code (capped at 400 on screen, finalists always included), shuffled
+    const wall = [...field, ...others.slice(7, 400 - field.length).map((a) => a.code)];
+    for (let i = wall.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [wall[i], wall[j]] = [wall[j], wall[i]]; }
+    return send(res, 200, { winner: row, tier, field, wall, poolSize: pool.length });
+  }
+  if (p === '/admin/api/winner' && req.method === 'POST') {
+    const b = await readJson(req), w = db.winners.find((x) => x.id === b.id);
+    if (!w) return send(res, 404, { error: 'Không tìm thấy.' });
+    w.status = b.status === 'absent' ? 'absent' : 'won';
+    store.audit(w.status === 'absent' ? 'vắng mặt' : 'trao giải', 'BTC', `${w.tierName}: ${w.code} ${w.name}`);
+    changed(true);
+    return send(res, 200, { ok: true });
+  }
+  if (p === '/admin/api/reset' && req.method === 'POST') {
+    const b = await readJson(req);
+    if (b.what === 'votes') db.votes = {};
+    else if (b.what === 'winners') db.winners = [];
+    else return send(res, 400, { error: 'Thiếu mục cần xoá.' });
+    store.audit('xoá ' + b.what, 'BTC');
+    changed(true);
+    return send(res, 200, { ok: true });
+  }
+  if (p === '/admin/api/sample' && req.method === 'POST') {
+    const b = await readJson(req);
+    if (b.clear) {
+      const ids = new Set(db.attendees.filter((a) => a.sample).map((a) => a.id));
+      db.attendees = db.attendees.filter((a) => !a.sample);
+      for (const id of ids) delete db.votes[id];
+      db.winners = db.winners.filter((w) => !ids.has(w.attendeeId));
+      changed(true);
+      return send(res, 200, { deleted: ids.size });
+    }
+    const perfs = db.settings.performances;
+    let n = 0;
+    for (let i = 0; i < 30; i++) {
+      const phone = '0900000' + pad3(i);
+      if (db.attendees.some((a) => a.phoneNorm === phone)) continue;
+      const a = createAttendee({ name: `${FN[crypto.randomInt(10)]} ${MN[crypto.randomInt(8)]} ${LN[crypto.randomInt(16)]}`, type: TYPES[crypto.randomInt(2)], dept: DEPTS[crypto.randomInt(8)],
+        email: `khachmau${i}@example.com`, phone, phoneNorm: phone }, 'btc', true);
+      if (perfs.length && crypto.randomInt(3)) db.votes[a.id] = { perf: perfs[crypto.randomInt(perfs.length)].id, at: now() };
+      n++;
+    }
+    changed(true);
+    return send(res, 200, { created: n });
+  }
+  send(res, 404, { error: 'Not found.' });
+}
+
+/* ── static files ── */
+const TYPES_MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.ico': 'image/x-icon', '.json': 'application/json' };
+const BLOCKED = /^\/(server|data|node_modules|\.git|\.env|\.env\.example|\.dockerignore|Dockerfile|index\.js|package(-lock)?\.json|README\.md|PROMPTS\.md|\.gitignore)(\/|$)/;
+function serveFile(req, res, file, cache) {
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) return send(res, 404, 'Not found');
+    const ext = path.extname(file).toLowerCase();
+    res.writeHead(200, { 'Content-Type': TYPES_MIME[ext] || 'application/octet-stream', 'Content-Length': st.size, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': ext === '.html' ? 'no-cache' : cache });
+    if (req.method === 'HEAD') return res.end();
+    fs.createReadStream(file).pipe(res);
+  });
+}
+function serveStatic(req, res, url) {
+  let p = decodeURIComponent(url.pathname);
+  if (BLOCKED.test(p) || p.includes('\0')) return send(res, 404, 'Not found');
+  if (p.startsWith('/uploads/')) {
+    const file = path.join(UPLOAD_DIR, path.basename(p));
+    return serveFile(req, res, file, 'public, max-age=604800');
+  }
+  if (p.endsWith('/')) p += 'index.html';
+  const file = path.join(ROOT, path.normalize(p));
+  if (!file.startsWith(ROOT + path.sep)) return send(res, 404, 'Not found');
+  serveFile(req, res, file, 'public, max-age=3600');
+}
+
+/* ── router ── */
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://x');
+  try {
+    if (url.pathname.startsWith('/api/')) return await api(req, res, url);
+    if (url.pathname.startsWith('/admin/api/')) return await admin(req, res, url);
+    if (url.pathname === '/admin' || url.pathname === '/screen') { res.writeHead(301, { Location: url.pathname + '/' }); return res.end(); }
+    if (req.method === 'GET' || req.method === 'HEAD') return serveStatic(req, res, url);
+    send(res, 405, { error: 'Method not allowed' });
+  } catch (e) {
+    console.error(e);
+    if (!res.headersSent) send(res, e.status || 500, { error: e.status ? e.message : 'Có lỗi, vui lòng thử lại.' });
+  }
+});
+
+function start() {
+  server.listen(PORT, '0.0.0.0', () => console.log(`IPS YEP 2026 server on port ${PORT} · public ${BASE_URL} · dashboard ${BASE_URL}/admin/ · screen ${BASE_URL}/screen/`));
+}
+if (require.main === module) start();
+module.exports = { server, db, start };

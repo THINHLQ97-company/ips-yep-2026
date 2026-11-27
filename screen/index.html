@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Màn hình bình chọn — IPS YEP 2026</title>
+<meta name="theme-color" content="#061436">
+<link rel="icon" type="image/png" href="/images/ips-logo.png">
+<link rel="stylesheet" href="/css/fonts.css">
+<link rel="stylesheet" href="/css/stage.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #061436; overflow: hidden; }
+  .fs { position: fixed; right: 14px; bottom: 14px; z-index: 50; padding: 10px 16px; border: 0; border-radius: 10px; cursor: pointer; font: 600 14px Poppins, sans-serif; color: #fff; background: rgba(255,255,255,.14); opacity: .25; transition: opacity .2s; }
+  .fs:hover { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="stage-wrap" id="wrap"><div class="stage" id="stage"></div></div>
+<button type="button" class="fs" id="fs">Toàn màn hình (F)</button>
+<script src="/js/qrcode.js"></script>
+<script src="/js/yep-common.js"></script>
+<script src="/js/stage.js"></script>
+<script>
+(function () {
+  var stage = document.getElementById('stage');
+  YEPStage.fit(document.getElementById('wrap'), stage);
+  var update = YEPStage.towers(stage);
+  YEP.live(update);
+  function fs() { var d = document.documentElement; if (!document.fullscreenElement && d.requestFullscreen) d.requestFullscreen().catch(function () {}); else if (document.exitFullscreen) document.exitFullscreen().catch(function () {}); }
+  document.getElementById('fs').addEventListener('click', fs);
+  document.addEventListener('keydown', function (e) { if (e.key === 'f' || e.key === 'F') fs(); });
+})();
+</script>
+</body>
+</html>
