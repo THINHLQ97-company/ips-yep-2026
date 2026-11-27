@@ -71,7 +71,9 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
 .hero { position: absolute; left: max(4vw, 32px); top: max(100px, 12vh); width: min(56vw, 920px); z-index: 2; }
 .eyebrow { display: flex; align-items: center; gap: 14px; font-family: var(--f-d); font-weight: 600; font-size: 14px; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,255,255,.92);
   opacity: 0; animation: fade-up .8s .1s ease-out forwards; }
-.eyebrow img { height: 36px; }
+/* original-colour logo on a white chip so the dark-blue tagline stays readable on the night sky */
+.logo-chip { display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 12px; background: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.eyebrow img { height: 34px; width: auto; display: block; }
 .eyebrow i { width: 1.5px; height: 28px; background: rgba(255,255,255,.55); }
 .theme-title { margin: 16px 0 0; font-family: var(--f-t); font-weight: 800; font-size: min(5.1vw, 8.6vh); line-height: 1.05; letter-spacing: -.01em; white-space: nowrap; perspective: 900px; }
 .theme-title .w { display: inline-block; white-space: nowrap; }
@@ -234,7 +236,7 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
   .page-hero { min-height: 0; position: relative; background: #041a46; }
   .hero { position: relative; width: auto; left: auto; top: auto; padding-top: 70px; display: block; }
   .title-block { position: relative; z-index: 2; text-align: center; padding: 0 16px; }
-  .eyebrow { justify-content: center; font-size: 11px; letter-spacing: 1.5px; gap: 10px; } .eyebrow img { height: 26px; } .eyebrow i { height: 20px; }
+  .eyebrow { justify-content: center; font-size: 11px; letter-spacing: 1.5px; gap: 10px; } .eyebrow img { height: 24px; } .logo-chip { padding: 5px 9px; border-radius: 9px; } .eyebrow i { height: 20px; }
   .theme-title { margin-top: 10px; font-size: min(10.5vw, 50px); white-space: normal; }
   .road-line { margin: 0 auto; width: 78%; height: 24px; }
   .vi { font-size: min(6.2vw, 28px); }
