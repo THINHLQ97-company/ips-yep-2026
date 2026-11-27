@@ -23,8 +23,8 @@ body { margin: 0; background: var(--ink); }
   font-family: var(--f-b); font-size: 20px; font-weight: 300; color: #fff; background: var(--ink);
 }
 /* key visual on its own layer so it can drift with the pointer (parallax depth) */
-.bg-layer { position: absolute; inset: -30px; z-index: -2; background: var(--bg, url(../images/bg-desktop.jpg)) center / cover no-repeat;
-  transform: translate3d(var(--px, 0px), var(--py, 0px), 0) scale(1.02); transition: transform 1s cubic-bezier(.2,.8,.2,1); }
+.bg-layer { position: absolute; inset: -16px; z-index: -2; background: var(--bg, url(../images/bg-desktop.webp)) center / cover no-repeat;
+  transform: translate3d(var(--px, 0px), var(--py, 0px), 0); transition: transform 1s cubic-bezier(.2,.8,.2,1); }
 :root { --f-t: Unbounded, Poppins, 'Segoe UI', sans-serif; }
 .t-yep ::selection { background: var(--azure); color: #fff; }
 .t-yep * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent; }
@@ -213,7 +213,7 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
 /* Mobile: one long page (people arrive from a QR code and scroll), same glass language as MDF mobile */
 @media (max-width: 900px) {
   .t-yep { position: static; overflow: visible; font-size: 16px; background: none; }
-  .t-yep::before { content: ''; position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(9,22,56,.35) 0%, rgba(9,22,56,0) 30%, rgba(9,22,56,0) 60%, rgba(9,22,56,.75) 100%), var(--bgm, url(../images/bg-mobile.jpg)) center bottom / 100% auto no-repeat, #041a46; }
+  .t-yep::before { content: ''; position: fixed; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(9,22,56,.35) 0%, rgba(9,22,56,0) 30%, rgba(9,22,56,0) 60%, rgba(9,22,56,.75) 100%), var(--bgm, url(../images/bg-mobile.webp)) center bottom / 100% auto no-repeat, #041a46; }
   .yep-container { max-width: 100%; width: 100%; padding: 0 16px; }
   .yep-page { display: block; position: relative; inset: auto; overflow: visible; }
   .yep-page { scroll-margin-top: 0; }

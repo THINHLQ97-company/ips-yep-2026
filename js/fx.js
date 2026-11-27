@@ -33,7 +33,7 @@
     window.addEventListener('pointermove', function (e) {
       if (mobile.matches) return;
       var x = e.clientX / window.innerWidth - 0.5, y = e.clientY / window.innerHeight - 0.5;
-      layer.style.setProperty('--px', (-x * 22).toFixed(1) + 'px'); layer.style.setProperty('--py', (-y * 14).toFixed(1) + 'px');
+      layer.style.setProperty('--px', (-x * 24).toFixed(1) + 'px'); layer.style.setProperty('--py', (-y * 24).toFixed(1) + 'px');
     });
   }
 

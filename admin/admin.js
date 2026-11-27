@@ -245,7 +245,7 @@
   function vLook(m, full) {
     if (!full && dirty.look) return;
     var s = D.settings;
-    var bgs = [['bg', 'Nền trang check-in (máy tính, 16:9)', '/images/bg-desktop.jpg', ''], ['bgM', 'Nền điện thoại (9:16)', '/images/bg-mobile.jpg', 'tall'], ['bgStage', 'Nền màn hình sân khấu (16:9)', '/images/bg-stage.jpg', '']];
+    var bgs = [['bg', 'Nền trang check-in (máy tính, 16:9)', '/images/bg-desktop.webp', ''], ['bgM', 'Nền điện thoại (9:16)', '/images/bg-mobile.webp', 'tall'], ['bgStage', 'Nền màn hình sân khấu (16:9)', '/images/bg-stage.webp', '']];
     m.innerHTML = head('Giao diện & sự kiện', '', '<button class="btn primary" id="lsave">Lưu thông tin</button>') +
       '<div class="panel" style="margin-bottom:16px"><h2>Thông tin sự kiện</h2><div class="grid3">' +
       [['eventName', 'Tên sự kiện'], ['theme', 'Chủ đề (tiếng Anh)'], ['themeVi', 'Chủ đề (tiếng Việt)'], ['eventDate', 'Thời gian (vd 18:00 · 20/12/2026)'], ['venue', 'Địa điểm'], ['publicUrl', 'Link công khai (dùng cho mã QR)']].map(function (f) {

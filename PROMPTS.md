@@ -4,7 +4,7 @@ Cách dùng: tạo ảnh 1 trước, các ảnh sau đính kèm ảnh 1 và mở
 "Same art style, lighting and world as the attached image". Không để AI vẽ chữ/logo; tiêu đề và logo do code chèn.
 Khi cần symbol IPS trong ảnh, đính kèm logo IPS và mô tả hình như mục 1.
 
-## 1. Nền máy tính (16:9) → `images/bg-desktop.jpg`
+## 1. Nền máy tính (16:9) → `images/bg-desktop.webp`
 
 ```
 Cinematic 3D animated film style, Pixar-like, ultra detailed, volumetric lighting, 16:9.
@@ -18,7 +18,7 @@ Composition: symbol and characters on the RIGHT half; the LEFT 45% is calm dark 
 No text, no letters, no logos other than the symbol, no watermark.
 ```
 
-## 2. Nền điện thoại (9:16) → `images/bg-mobile.jpg`
+## 2. Nền điện thoại (9:16) → `images/bg-mobile.webp`
 
 ```
 Same art style, lighting and world as the attached image. Vertical 9:16 composition for a phone screen.
@@ -26,7 +26,7 @@ The glowing IPS symbol sits in the upper-middle; the light ribbon road rises fro
 Keep the TOP 25% as calm dark navy sky (for the title) and leave an empty band of sky between the symbol and the city (for a button). No text, no logos.
 ```
 
-## 3. Nền màn hình LED (16:9) → `images/bg-stage.jpg`
+## 3. Nền màn hình LED (16:9) → `images/bg-stage.webp`
 
 ```
 Same art style and world as the attached image, wide stage backdrop for an LED screen.

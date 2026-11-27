@@ -59,7 +59,7 @@ Lần đầu chạy với PostgreSQL, nếu còn file `data/db.json` cũ thì d�
 ## Chỉnh nội dung
 
 - **Tiết mục, giải thưởng, ảnh giải, thông tin sự kiện, ảnh nền**: chỉnh trực tiếp trong dashboard, không cần deploy lại.
-- Ảnh nền mặc định trong `images/`: `bg-desktop.jpg` (16:9), `bg-mobile.jpg` (9:16), `bg-stage.jpg` (LED 16:9), `og.jpg` (ảnh chia sẻ link).
+- Ảnh nền mặc định trong `images/`: `bg-desktop.webp` (16:9), `bg-mobile.webp` (9:16), `bg-stage.webp` (LED 16:9), `og.jpg` (ảnh chia sẻ link).
 - Danh sách phòng ban: `DEPTS` trong `server/server.js` và `js/yep-common.js` (sửa cả hai).
 - Prompt tạo ảnh bằng ChatGPT: xem `PROMPTS.md`.
 
