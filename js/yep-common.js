@@ -12,6 +12,10 @@
   function titleCase(s) { return String(s || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('vi').replace(/(^|[\s\-\/(])(\p{L})/gu, function (m, a, b) { return a + b.toLocaleUpperCase('vi'); }); }
   /* where someone belongs: department for IPS, otherwise the unit */
   function unitOf(a) { return a.dept ? a.type + ' · ' + a.dept : a.type; }
+  /* phone numbers: same rules as the server ("+84 912…" -> "0912…"); shown as "0912 345 678" */
+  function normPhone(p) { var d = String(p || '').replace(/\D/g, ''); if (/^84\d{9}$/.test(d)) d = '0' + d.slice(2); else if (/^\d{9}$/.test(d) && d[0] !== '0') d = '0' + d; return d; }
+  function isPhone(d) { return /^0[35789]\d{8}$/.test(d); }
+  function fmtPhone(p) { var d = normPhone(p); return d.length === 10 ? d.slice(0, 4) + ' ' + d.slice(4, 7) + ' ' + d.slice(7) : String(p || ''); }
   var PALETTE = ['#ffc928', '#ff4f9a', '#3fe0ff', '#9ff05a', '#ff8a3d', '#a98bff', '#0089cf', '#ed1c24'];
   var ARTS = { phone: 'Điện thoại', tv: 'Tivi', fridge: 'Tủ lạnh', cooker: 'Bếp điện từ', kettle: 'Ấm siêu tốc', powerbank: 'Sạc dự phòng', gift: 'Quà tặng' };
 
@@ -84,5 +88,5 @@
     box.insertAdjacentHTML('beforeend', h);
   }
 
-  window.YEP = { $: $, $$: $$, esc: esc, reduce: reduce, DEPTS: DEPTS, TYPES: TYPES, DEPT_TYPE: DEPT_TYPE, titleCase: titleCase, unitOf: unitOf, PALETTE: PALETTE, ARTS: ARTS, fmtT: fmtT, api: api, live: live, toast: toast, art: art, safeImg: safeImg, prizePic: prizePic, qrSvg: qrSvg, tilt: tilt, confetti: confetti };
+  window.YEP = { $: $, $$: $$, esc: esc, reduce: reduce, DEPTS: DEPTS, TYPES: TYPES, DEPT_TYPE: DEPT_TYPE, titleCase: titleCase, unitOf: unitOf, normPhone: normPhone, isPhone: isPhone, fmtPhone: fmtPhone, PALETTE: PALETTE, ARTS: ARTS, fmtT: fmtT, api: api, live: live, toast: toast, art: art, safeImg: safeImg, prizePic: prizePic, qrSvg: qrSvg, tilt: tilt, confetti: confetti };
 })();

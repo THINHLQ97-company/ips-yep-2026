@@ -42,7 +42,10 @@ const now = () => Date.now();
 const token = (n = 24) => crypto.randomBytes(n).toString('base64url');
 const pad3 = (n) => String(n).padStart(3, '0');
 const str = (v, max = 120) => String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, max);
-const normPhone = (p) => String(p || '').replace(/\D/g, '').replace(/^84/, '0');
+// "+84 912-345-678", "84912345678", "912345678" -> "0912345678"; the normalised number is the duplicate key
+const normPhone = (p) => { let d = String(p || '').replace(/\D/g, ''); if (/^84\d{9}$/.test(d)) d = '0' + d.slice(2); else if (/^\d{9}$/.test(d) && d[0] !== '0') d = '0' + d; return d; };
+const isPhone = (d) => /^0[35789]\d{8}$/.test(d);   // Vietnamese mobile: 10 digits
+const phoneOwner = (d, except) => d ? db.attendees.find((a) => a.phoneNorm === d && a !== except) : null;
 const isColor = (c) => /^#[0-9a-f]{6}$/i.test(String(c || ''));
 const baseOf = (u) => { try { const x = new URL(u); return (x.origin + x.pathname).replace(/\/+$/, ''); } catch (e) { return String(u || '').split('#')[0].replace(/\/+$/, ''); } };
 const isUpload = (u) => /^\/uploads\/[\w.-]+$/.test(String(u || ''));
@@ -51,8 +54,10 @@ const isUpload = (u) => /^\/uploads\/[\w.-]+$/.test(String(u || ''));
 const titleCase = (s) => str(s, 80).normalize('NFC').toLocaleLowerCase('vi').replace(/(^|[\s\-\/(])(\p{L})/gu, (m, sep, ch) => sep + ch.toLocaleUpperCase('vi'));
 const nameKey = (a) => titleCase(a.name) + '|' + (a.type || '') + '|' + (a.dept || '');
 function validate(b) {
-  const v = { name: titleCase(b.name), title: titleCase(b.title), type: str(b.type, 20), dept: str(b.dept, 60) };
+  const v = { name: titleCase(b.name), phone: normPhone(b.phone), title: titleCase(b.title), type: str(b.type, 20), dept: str(b.dept, 60) };
   if (v.name.length < 2) return [null, 'Vui lòng nhập họ và tên.'];
+  if (!v.phone) return [null, 'Vui lòng nhập số điện thoại.'];
+  if (!isPhone(v.phone)) return [null, 'Số điện thoại không hợp lệ. Vui lòng nhập số di động 10 số, VD: 0912 345 678.'];
   if (v.title.length < 2) return [null, 'Vui lòng nhập chức vụ.'];
   if (!TYPES.includes(v.type)) return [null, 'Vui lòng chọn đơn vị.'];
   if (v.type === DEPT_TYPE) { if (!DEPTS.includes(v.dept)) return [null, 'Vui lòng chọn phòng ban.']; }
@@ -68,12 +73,12 @@ function freeCode() {
 }
 function createAttendee(v, source, sample) {
   const t = now();
-  const a = { id: token(9), token: token(24), code: freeCode(), name: v.name, title: v.title, type: v.type, dept: v.dept,
+  const a = { id: token(9), token: token(24), code: freeCode(), name: v.name, phone: v.phone, phoneNorm: v.phone, title: v.title, type: v.type, dept: v.dept,
     source, sample: !!sample, createdAt: t, lastSeen: t, visits: [t] };
   db.attendees.push(a);
   return a;
 }
-const pub = (a) => a && { id: a.id, code: a.code, name: a.name, title: a.title || '', type: a.type, dept: a.dept, createdAt: a.createdAt };
+const pub = (a) => a && { id: a.id, code: a.code, name: a.name, phone: a.phone || '', title: a.title || '', type: a.type, dept: a.dept, createdAt: a.createdAt };
 const revealed = () => db.winners.filter((w) => w.revealed || w.at <= now() - REVEAL_FALLBACK_MS);
 
 function publicStatus() {
@@ -106,7 +111,7 @@ setInterval(() => { for (const c of clients) c.res.write(': ping\n\n'); }, 25e3)
 
 /* ── rate limiting (in memory) ──
    Limits are per IP and generous on purpose: at the party the whole hall shares one Wi-Fi, so hundreds of phones
-   arrive from the same public IP. Duplicates are stopped by name + unit + department and one vote per guest. */
+   arrive from the same public IP. Duplicates are stopped by phone number and one vote per guest. */
 const buckets = new Map();
 function limited(key, max, windowMs) {
   const t = now(), b = (buckets.get(key) || []).filter((x) => t - x < windowMs);
@@ -187,8 +192,8 @@ async function api(req, res, url) {
     if (cur) return send(res, 200, { me: pub(cur), existing: true });
     const [v, err] = validate(b);
     if (!v) return send(res, 400, { error: err });
-    const dup = db.attendees.find((a) => nameKey(a) === nameKey(v));
-    if (dup) return send(res, 409, { error: 'Họ tên này đã check-in ' + (v.dept ? 'ở phòng ban ' + v.dept : 'ở đơn vị ' + v.type) + '. Nếu là bạn, bấm "Đã check-in trên máy khác?" để lấy lại vé. Nếu trùng tên đồng nghiệp, vui lòng liên hệ bàn BTC.' });
+    // one check-in per phone number (same-name colleagues are fine as long as their numbers differ)
+    if (phoneOwner(v.phone)) return send(res, 409, { error: 'Số điện thoại này đã check-in. Nếu là bạn, bấm "Đã check-in trên máy khác?" và nhập họ tên + số điện thoại để lấy lại vé. Nếu không phải bạn, vui lòng liên hệ bàn BTC.' });
     const a = createAttendee(v, 'self');
     store.audit('check-in', a.name, a.code);
     changed(true);
@@ -197,10 +202,12 @@ async function api(req, res, url) {
   if (p === '/api/recover' && req.method === 'POST') {
     if (limited('recover:' + ip, 120, 600e3)) return send(res, 429, { error: 'Thử quá nhiều lần, vui lòng đợi ít phút.' });
     const b = await readJson(req);
-    // a lost ticket comes back with the guest's name + lucky number (the BTC can look the number up in the dashboard)
-    const nm = titleCase(b.name), code = String(b.code || '').replace(/\D/g, '').padStart(3, '0');
-    const a = nm && code !== '000' ? db.attendees.find((x) => x.code === code && titleCase(x.name) === nm) : null;
-    if (!a) return send(res, 404, { error: 'Không tìm thấy. Kiểm tra lại họ tên và mã số may mắn, hoặc hỏi bàn BTC để tra mã.' });
+    // a lost ticket comes back with the guest's name + phone number or lucky number (the BTC can look both up in the dashboard)
+    const nm = titleCase(b.name), digits = String(b.code || '').replace(/\D/g, '');
+    let a = null;
+    if (nm && digits.length >= 9) { const ph = normPhone(digits); a = db.attendees.find((x) => x.phoneNorm === ph && titleCase(x.name) === nm); }
+    else if (nm && digits && +digits) { const code = digits.padStart(3, '0'); a = db.attendees.find((x) => x.code === code && titleCase(x.name) === nm); }
+    if (!a) return send(res, 404, { error: 'Không tìm thấy. Kiểm tra lại họ tên và số điện thoại (hoặc mã số may mắn), hoặc hỏi bàn BTC.' });
     return send(res, 200, { me: pub(a) }, { 'Set-Cookie': setCookie('yep_t', a.token, 30) });
   }
   if (p === '/api/vote' && req.method === 'POST') {
@@ -225,7 +232,7 @@ const FN = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Võ', 'Đặng', '
 function adminData() {
   return {
     settings: db.settings, defaultUrl: BASE_URL,
-    attendees: db.attendees.map((a) => ({ id: a.id, code: a.code, name: a.name, title: a.title || '', type: a.type, dept: a.dept || '', source: a.source, sample: a.sample,
+    attendees: db.attendees.map((a) => ({ id: a.id, code: a.code, name: a.name, phone: a.phone || '', title: a.title || '', type: a.type, dept: a.dept || '', source: a.source, sample: a.sample,
       createdAt: a.createdAt, lastSeen: a.lastSeen, visits: a.visits.length, perf: (db.votes[a.id] || {}).perf || '', votedAt: (db.votes[a.id] || {}).at || 0 })),
     winners: db.winners, audit: db.audit.slice(0, 100)
   };
@@ -233,8 +240,8 @@ function adminData() {
 function csv() {
   const perfs = Object.fromEntries(db.settings.performances.map((p) => [p.id, p.name]));
   const q = (s) => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
-  const head = ['Mã', 'Họ và tên', 'Chức vụ', 'Đơn vị', 'Phòng ban', 'Nguồn', 'Giờ check-in', 'Số lần mở trang', 'Bình chọn', 'Giải thưởng'];
-  const rows = [...db.attendees].sort((a, b) => a.code.localeCompare(b.code)).map((a) => [a.code, a.name, a.title || '', a.type, a.dept || '', a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in',
+  const head = ['Mã', 'Họ và tên', 'Số điện thoại', 'Chức vụ', 'Đơn vị', 'Phòng ban', 'Nguồn', 'Giờ check-in', 'Số lần mở trang', 'Bình chọn', 'Giải thưởng'];
+  const rows = [...db.attendees].sort((a, b) => a.code.localeCompare(b.code)).map((a) => [a.code, a.name, a.phone ? '\t' + a.phone : '', a.title || '', a.type, a.dept || '', a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in',
     new Date(a.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), a.visits.length, perfs[(db.votes[a.id] || {}).perf] || '',
     db.winners.filter((w) => w.attendeeId === a.id && w.status === 'won').map((w) => w.tierName + ' – ' + w.item).join('; ')].map(q).join(','));
   return '﻿' + [head.map(q).join(','), ...rows].join('\r\n');
@@ -268,8 +275,11 @@ async function admin(req, res, url) {
     const body = await readJson(req);
     const [v, err] = validate(body);
     if (!v) return send(res, 400, { error: err });
+    // same phone = same person: never a second code. Same name with another phone is only a warning.
+    const same = phoneOwner(v.phone);
+    if (same) return send(res, 409, { error: `Số điện thoại này đã check-in: ${same.name} (${same.dept || same.type}), mã ${same.code}.` });
     const dup = db.attendees.find((a) => nameKey(a) === nameKey(v));
-    if (dup && !body.force) return send(res, 409, { error: `Đã có ${dup.name} (${dup.dept || dup.type}) check-in, mã ${dup.code}. Bấm lại để vẫn check-in nếu là người khác trùng tên.`, dup: true });
+    if (dup && !body.force) return send(res, 409, { error: `Đã có ${dup.name} (${dup.dept || dup.type}) check-in, mã ${dup.code}, SĐT khác. Bấm lại để vẫn check-in nếu là người khác trùng tên.`, dup: true });
     const a = createAttendee(v, 'btc');
     store.audit('BTC check-in hộ', 'BTC', a.code + ' ' + a.name);
     changed(true);
@@ -383,8 +393,8 @@ async function admin(req, res, url) {
     const TITLES = ['Nhân Viên', 'Chuyên Viên', 'Trưởng Nhóm', 'Trưởng Phòng', 'Quản Lý Dự Án', 'Kỹ Thuật Viên'];
     for (let i = db.attendees.filter((a) => a.sample).length; i < 30; i++) {
       const type = crypto.randomInt(5) ? 'IPS' : TYPES[1 + crypto.randomInt(2)];
-      const v = { name: `${FN[crypto.randomInt(10)]} ${MN[crypto.randomInt(8)]} ${LN[crypto.randomInt(16)]}`, title: TITLES[crypto.randomInt(TITLES.length)], type, dept: type === 'IPS' ? DEPTS[crypto.randomInt(DEPTS.length)] : '' };
-      if (db.attendees.some((a) => nameKey(a) === nameKey(v))) continue;
+      const v = { name: `${FN[crypto.randomInt(10)]} ${MN[crypto.randomInt(8)]} ${LN[crypto.randomInt(16)]}`, phone: '09' + String(crypto.randomInt(1e8)).padStart(8, '0'), title: TITLES[crypto.randomInt(TITLES.length)], type, dept: type === 'IPS' ? DEPTS[crypto.randomInt(DEPTS.length)] : '' };
+      if (phoneOwner(v.phone) || db.attendees.some((a) => nameKey(a) === nameKey(v))) continue;
       const a = createAttendee(v, 'btc', true);
       if (perfs.length && crypto.randomInt(3)) db.votes[a.id] = { perf: perfs[crypto.randomInt(perfs.length)].id, at: now() };
       n++;

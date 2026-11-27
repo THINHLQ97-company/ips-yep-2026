@@ -37,7 +37,7 @@ const DEFAULT_SETTINGS = {
 function normalize(db) {
   db = db && typeof db === 'object' ? db : {};
   db.settings = Object.assign({}, DEFAULT_SETTINGS, db.settings || {});
-  db.attendees = db.attendees || [];   // { id, token, code, name, type, dept, email, phone, phoneNorm, source, sample, createdAt, lastSeen, visits:[ts] }
+  db.attendees = db.attendees || [];   // { id, token, code, name, phone, phoneNorm (duplicate key), title, type, dept, source, sample, createdAt, lastSeen, visits:[ts] }
   db.votes = db.votes || {};           // attendeeId -> { perf, at }
   db.winners = db.winners || [];       // { id, attendeeId, code, name, dept, type, tier, tierName, item, at, status }
   db.audit = db.audit || [];

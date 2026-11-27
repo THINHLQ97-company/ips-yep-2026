@@ -97,9 +97,9 @@
     ckMode = mode;
     if (mode === 'load') { box.innerHTML = '<p class="lead">Đang kiểm tra thông tin check-in…</p>'; return; }
     if (mode === 'recover') {
-      box.innerHTML = '<h3>Tìm lại vé của bạn</h3><p class="lead">Đã check-in trên máy khác? Nhập họ tên và mã số may mắn của bạn. Quên mã? Hỏi bàn BTC để tra giúp.</p>' +
+      box.innerHTML = '<h3>Tìm lại vé của bạn</h3><p class="lead">Đã check-in trên máy khác? Nhập họ tên và số điện thoại đã dùng khi check-in (hoặc mã số may mắn). Cần giúp? Hỏi bàn BTC.</p>' +
         '<form id="rcF" novalidate><div class="formrow"><label class="label" for="rcName">Họ và tên</label><input id="rcName" autocomplete="name" placeholder="Nguyễn Văn A"></div>' +
-        '<div class="formrow"><label class="label" for="rcCode">Mã số may mắn</label><input id="rcCode" inputmode="numeric" maxlength="3" placeholder="VD: 042"></div>' +
+        '<div class="formrow"><label class="label" for="rcCode">Số điện thoại hoặc mã số may mắn</label><input id="rcCode" type="tel" inputmode="numeric" autocomplete="tel" maxlength="16" placeholder="VD: 0912 345 678 hoặc 042"></div>' +
         '<p class="form-err" id="rcErr"></p><div class="actions"><button type="button" class="linkbtn" data-mode="form">Quay lại check-in</button><button class="cta" type="submit">Tìm vé</button></div></form>';
       $('#rcF').addEventListener('submit', function (e) {
         e.preventDefault(); var b = this.querySelector('[type=submit]'); b.disabled = true;
@@ -111,6 +111,7 @@
       box.innerHTML = '<h3>Thông tin của bạn</h3><p class="lead">Điền thông tin để nhận <b style="color:var(--gold)">mã số may mắn</b> cho vòng bốc thăm.</p>' +
         '<form id="ckF" novalidate autocomplete="on">' +
         '<div class="formrow"><label class="label" for="ckName">Họ và tên <em>*</em></label><input id="ckName" autocomplete="name" placeholder="Nguyễn Văn A"></div>' +
+        '<div class="formrow"><label class="label" for="ckPhone">Số điện thoại <em>*</em></label><input id="ckPhone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="16" placeholder="0912 345 678"></div>' +
         '<div class="formrow"><label class="label" for="ckTitle">Chức vụ <em>*</em></label><input id="ckTitle" autocomplete="organization-title" placeholder="VD: Marketing Manager"></div>' +
         '<div class="formrow"><span class="label">Đơn vị <em>*</em></span><div class="seg seg3">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="ckType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
         '<div class="formrow" id="ckDeptRow"><label class="label" for="ckDept">Phòng ban <em>*</em></label><select id="ckDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></div>' +
@@ -123,6 +124,7 @@
       $$('input[name=ckType]').forEach(function (r) { r.addEventListener('change', syncDept); }); syncDept();
       // tidy capitalisation as soon as a field is left
       ['#ckName', '#ckTitle'].forEach(function (id) { $(id).addEventListener('blur', function () { this.value = Y.titleCase(this.value); }); });
+      $('#ckPhone').addEventListener('blur', function () { if (Y.isPhone(Y.normPhone(this.value))) this.value = Y.fmtPhone(this.value); });
     }
     $$('[data-mode]', box).forEach(function (b) { b.addEventListener('click', function () { want = b.dataset.mode; renderCheckin(); }); });
   }
@@ -131,9 +133,11 @@
     e.preventDefault();
     var f = this, b = f.querySelector('[type=submit]'), out = $('#ckErr');
     var type = (f.querySelector('input[name=ckType]:checked') || {}).value;
-    var v = { name: Y.titleCase($('#ckName').value), title: Y.titleCase($('#ckTitle').value), type: type, dept: type === Y.DEPT_TYPE ? $('#ckDept').value : '', website: $('#ckWeb').value };
+    var v = { name: Y.titleCase($('#ckName').value), phone: Y.normPhone($('#ckPhone').value), title: Y.titleCase($('#ckTitle').value), type: type, dept: type === Y.DEPT_TYPE ? $('#ckDept').value : '', website: $('#ckWeb').value };
     $('#ckName').value = v.name; $('#ckTitle').value = v.title;
     if (v.name.length < 2) return (out.textContent = 'Vui lòng nhập họ và tên.');
+    if (!v.phone) return (out.textContent = 'Vui lòng nhập số điện thoại.');
+    if (!Y.isPhone(v.phone)) return (out.textContent = 'Số điện thoại không hợp lệ. Vui lòng nhập số di động 10 số, VD: 0912 345 678.');
     if (v.title.length < 2) return (out.textContent = 'Vui lòng nhập chức vụ.');
     if (type === Y.DEPT_TYPE && !v.dept) return (out.textContent = 'Vui lòng chọn phòng ban.');
     out.textContent = ''; b.disabled = true; b.textContent = 'Đang cấp mã…';
