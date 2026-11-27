@@ -16,7 +16,7 @@
   /* ───────── vote towers ───────── */
   function towers(stage) {
     stage.innerHTML =
-      '<div class="st-title"><div class="eyebrow"><img src="/images/ips-logo-white.png" alt="IPS"><span data-k="event">IPS Year End Party 2026</span></div>' +
+      '<div class="st-title"><div class="eyebrow"><span class="logo-chip"><img src="/images/ips-logo-color.png" alt="IPS · Hơn cả dịch vụ"></span><span data-k="event">IPS Year End Party 2026</span></div>' +
       '<h1>Tiết mục nào đang dẫn lối?</h1><p data-k="rule">Mỗi 10 phiếu bầu xây thêm một tầng. Tòa cao nhất được thắp biểu tượng IPS.</p></div>' +
       '<div class="st-qr st-glass"><div class="q" data-k="qr"></div><div><b>Quét để bình chọn</b><span data-k="open">Cổng bình chọn đang đóng</span><div class="big" data-k="total">0</div><span>phiếu đã bầu</span></div></div>' +
       '<div class="scene"><div class="world' + (Y.reduce ? '' : ' sway') + '" data-k="world"><div class="ground"></div></div></div>';
@@ -86,7 +86,7 @@
     // LEN = length of the track in world px; VIEW = length of the 3D plane actually drawn (a window that scrolls with the camera)
     var LEN = 7000, VIEW = 2600, START = 120, FINISH = 400, LANE = 120;
     stage.innerHTML =
-      '<div class="st-title"><div class="eyebrow"><img src="/images/ips-logo-white.png" alt="IPS"><span data-k="round">Bốc thăm may mắn</span></div><h1 data-k="h1">Đường đua Lối Riêng</h1></div>' +
+      '<div class="st-title"><div class="eyebrow"><span class="logo-chip"><img src="/images/ips-logo-color.png" alt="IPS · Hơn cả dịch vụ"></span><span data-k="round">Bốc thăm may mắn</span></div><h1 data-k="h1">Đường đua Lối Riêng</h1></div>' +
       '<div class="podium-zone" data-k="podium"></div>' +
       '<div class="race-zone"><div class="road" data-k="road" style="--len:' + VIEW + 'px"></div><div class="wall-zone"><div class="wall" data-k="wall"></div></div></div>' +
       '<div class="leaders st-glass" data-k="leaders"><h4>Đang dẫn đầu</h4><ol></ol></div>' +

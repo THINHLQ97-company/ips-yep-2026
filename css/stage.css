@@ -8,7 +8,8 @@
 .stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(1100px 500px at 50% 45%, rgba(6,20,54,0) 40%, rgba(6,20,54,.45) 100%); }
 .st-title { position: absolute; left: 60px; top: 46px; z-index: 5; }
 .st-title .eyebrow { display: flex; align-items: center; gap: 14px; font-size: 16px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.85); }
-.st-title .eyebrow img { height: 40px; }
+.st-title .eyebrow img { height: 36px; width: auto; display: block; }
+.st-title .logo-chip { display: inline-flex; padding: 7px 12px; border-radius: 12px; background: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
 .st-title h1 { margin: 10px 0 0; font-size: 58px; line-height: 66px; font-weight: 700; letter-spacing: -.02em; background: linear-gradient(90deg, #7FD6FF, #fff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 6px 18px rgba(0,0,0,.35)); }
 .st-title p { margin: 6px 0 0; font-family: Barlow, sans-serif; font-size: 22px; color: rgba(255,255,255,.85); }
 .st-glass { background: linear-gradient(130deg, rgba(255,255,255,.08), rgba(255,255,255,.02)), rgba(9,22,56,.35); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);

@@ -11,7 +11,7 @@
 
   /* ───────── login ───────── */
   function showLogin(msg) {
-    root.innerHTML = '<div class="login"><img class="brand-logo" src="/images/ips-logo-white.png" alt="IPS">' +
+    root.innerHTML = '<div class="login"><span class="logo-chip lg"><img class="brand-logo" src="/images/ips-logo-color.png" alt="IPS · Hơn cả dịch vụ"></span>' +
       '<form id="lf"><h1>Dashboard BTC</h1><p>IPS Year End Party 2026 · The Other Way</p>' +
       '<label class="f">Mật khẩu BTC<input class="i" type="password" id="pw" autocomplete="current-password" autofocus></label>' +
       '<div class="err" id="le">' + esc(msg || '') + '</div><button class="btn primary" type="submit">Đăng nhập</button></form></div>';
@@ -23,7 +23,7 @@
 
   /* ───────── shell ───────── */
   function shell() {
-    root.innerHTML = '<div class="app"><aside class="side"><div class="logo"><img src="/images/ips-logo-white.png" alt="IPS"><small>YEP 2026 · Dashboard BTC</small></div>' +
+    root.innerHTML = '<div class="app"><aside class="side"><div class="logo"><span class="logo-chip"><img src="/images/ips-logo-color.png" alt="IPS · Hơn cả dịch vụ"></span><small>YEP 2026 · Dashboard BTC</small></div>' +
       TABS.map(function (t) { return '<button class="tab" data-tab="' + t[0] + '">' + t[1] + (t[0] === 'checkins' ? '<span class="count" id="cCount">0</span>' : t[0] === 'winners' ? '<span class="count" id="wCount">0</span>' : '') + '</button>'; }).join('') +
       '<div class="foot"><span class="live" id="liveDot"><i></i>Cập nhật trực tiếp</span><a href="/" target="_blank" rel="noopener">Mở trang check-in ↗</a><a href="/screen/" target="_blank" rel="noopener">Mở màn hình bình chọn ↗</a><button type="button" id="logout">Đăng xuất</button></div></aside>' +
       '<main class="content" id="main"></main></div>';
