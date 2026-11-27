@@ -409,12 +409,12 @@
   function vLook(m, full) {
     if (!full && dirty.look) return;
     var s = D.settings;
-    var bgs = [['bg', 'Nền trang check-in (máy tính, 16:9)', '/images/bg-desktop.webp', ''], ['bgM', 'Nền điện thoại (9:16)', '/images/bg-mobile.webp', 'tall'], ['bgStage', 'Nền màn hình sân khấu (16:9)', '/images/bg-stage.webp', '']];
+    var bgs = [['bg', 'Nền trang check-in (máy tính, 1920×1080, 16:9)', '/images/bg-desktop.webp', ''], ['bgM', 'Nền điện thoại (1080×1920, 9:16)', '/images/bg-mobile.webp', 'tall'], ['bgStage', 'Nền màn hình sân khấu (1920×1080, 16:9)', '/images/bg-stage.webp', '']];
     m.innerHTML = head('Giao diện & sự kiện', '', '<button class="btn primary" id="lsave">Lưu thông tin</button>') +
       '<div class="panel" style="margin-bottom:16px"><h2>Thông tin sự kiện</h2><div class="grid3">' +
-      [['eventName', 'Tên sự kiện'], ['theme', 'Chủ đề (tiếng Anh)'], ['themeVi', 'Chủ đề (tiếng Việt)'], ['eventDate', 'Thời gian (vd 18:00 · 20/12/2026)'], ['venue', 'Địa điểm'], ['publicUrl', 'Link công khai (dùng cho mã QR)']].map(function (f) {
+      [['eventName', 'Tên sự kiện'], ['theme', 'Chủ đề (tiếng Anh)'], ['themeVi', 'Chủ đề (tiếng Việt)'], ['eventDate', 'Ngày sự kiện (vd 26.12.2026)'], ['venue', 'Địa điểm'], ['publicUrl', 'Link công khai (dùng cho mã QR)']].map(function (f) {
         return '<label class="f">' + f[1] + '<input class="i" data-k="' + f[0] + '" value="' + esc(s[f[0]] || '') + '"' + (f[0] === 'publicUrl' ? ' placeholder="' + esc(D.defaultUrl) + '"' : '') + '></label>'; }).join('') + '</div></div>' +
-      '<div class="panel"><h2>Ảnh nền</h2><p class="hint" style="margin:-6px 0 12px">Ảnh mặc định nằm trong thư mục images/ của repo. Tải ảnh mới ở đây để thay mà không cần deploy lại.</p><div class="bgs">' + bgs.map(function (b) {
+      '<div class="panel"><h2>Ảnh nền</h2><p class="hint" style="margin:-6px 0 12px">Ảnh mặc định nằm trong thư mục images/ của repo. Tải ảnh mới ở đây để thay mà không cần deploy lại. Dùng ảnh nền không chữ, không logo; giao diện sẽ hiển thị chữ và logo.</p><div class="bgs">' + bgs.map(function (b) {
         var cur = s[b[0]] || b[2];
         return '<div class="bgc"><div class="pv ' + b[3] + '" style="background-image:url(\'' + esc(cur) + '\')"></div><div class="body"><b>' + b[1] + '</b><span class="hint">' + (s[b[0]] ? 'Đang dùng ảnh tải lên' : 'Đang dùng ảnh mặc định') + '</span>' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="btn file-btn">Tải ảnh mới<input type="file" accept="image/png,image/jpeg,image/webp" data-bg="' + b[0] + '"></span>' + (s[b[0]] ? '<button class="btn bad" data-reset="' + b[0] + '">Dùng ảnh mặc định</button>' : '') + '</div></div></div>'; }).join('') + '</div></div>';

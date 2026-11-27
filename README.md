@@ -80,3 +80,11 @@ Dashboard → Dữ liệu → "Tạo 30 khách mẫu" để thử màn hình bì
 - `js/yep-common.js` – hàm dùng chung; `js/qrcode.js` – thư viện QR (MIT)
 - `server/server.js` (HTTP + API + SSE realtime), `server/store.js` (lưu PostgreSQL hoặc file JSON)
 - `fonts/` – Poppins, Barlow, Unbounded (có bộ chữ tiếng Việt), tự host
+
+### Official IPS YEP key visual
+
+Ảnh thay thế là **nền không chữ, không logo**: desktop và sân khấu 1920×1080 (16:9), điện thoại 1080×1920 (9:16). Giữ ảnh hiện tại đến khi có ảnh mới. HTML dùng font Poppins/Barlow tự host (không khẳng định là font gốc của artwork), tiêu đề cyan với OTHER nhấn mạnh, slogan và thông tin sự kiện trắng; logo gốc giữ nguyên trên chip trắng.
+
+Desktop dành vùng giữa x15–85%, y12–48% cho logo/tiêu đề/thông tin và y50–62% cho CTA. Mobile dành x8–92%, y8–40% cho nội dung, y42–60% cho CTA/số check-in; người chạy ở y70–92%. Sân khấu dành x3–70%, y4–25% cho tiêu đề runtime, x72–97% cho QR và x12–88%, y28–85% cho nội dung trò chơi; ảnh sân khấu không có người chạy. Ribbon chỉ nằm ở rìa ảnh.
+
+Ngày/địa điểm trống hiển thị `26.12.2026` và `METROPOLE, HCMC`; giá trị tùy chỉnh được giữ nguyên. Đây là fallback hiển thị và mặc định cho store mới, không phải migration dữ liệu đã lưu.

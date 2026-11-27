@@ -79,8 +79,8 @@
     if (st.bgM && Y.safeImg(st.bgM)) { root.style.setProperty('--bgm', 'url("' + st.bgM + '")'); if ($('#heroArt').getAttribute('src') !== st.bgM) $('#heroArt').src = st.bgM; }
     Y.fx.splitTitle($('#themeTitle'), st.theme || 'The Other Way');
     var facts = [];
-    if (st.eventDate) facts.push(['Thời gian', st.eventDate]);
-    if (st.venue) facts.push(['Địa điểm', st.venue]);
+    facts.push(['Thời gian', String(st.eventDate || '').trim() ? st.eventDate : '26.12.2026']);
+    facts.push(['Địa điểm', String(st.venue || '').trim() ? st.venue : 'METROPOLE, HCMC']);
     $('#facts').hidden = !facts.length;
     $('#facts').innerHTML = facts.map(function (f) { return '<span class="glass ring"><b>' + esc(f[0]) + '</b>' + esc(f[1]) + '</span>'; }).join('');
     $$('.liveCount').forEach(function (el) { Y.fx.countTo(el, st.checkins); });

@@ -11,8 +11,8 @@ const DEFAULT_SETTINGS = {
   eventName: 'IPS Year End Party 2026',
   theme: 'The Other Way',
   themeVi: 'Mở lối đi riêng',
-  eventDate: '',            // e.g. "18:00 · 20/12/2026"
-  venue: '',                // e.g. "Trung tâm Hội nghị ..."
+  eventDate: '26.12.2026',
+  venue: 'METROPOLE, HCMC',
   votingOpen: false,
   votesPerFloor: 10,        // vote screen: every N votes builds one floor
   raceSeconds: 20,          // lucky draw: length of the final race

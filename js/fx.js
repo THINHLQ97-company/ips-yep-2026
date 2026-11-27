@@ -6,15 +6,17 @@
   var Y = window.YEP, reduce = Y.reduce;
   var mobile = window.matchMedia('(max-width: 900px)');
 
-  /* ── title: split into words + letters; the middle word(s) get the IPS gradient ── */
+  /* ── title: split into words + letters; OTHER is emphasized; custom titles retain their word mapping ── */
   function splitTitle(el, text) {
     if (!el || el.dataset.txt === text) return;
     el.dataset.txt = text; el.setAttribute('aria-label', text);
     var words = String(text).trim().split(/\s+/), i = 0;
-    var hl = words.length >= 3 ? function (k) { return k > 0 && k < words.length - 1; } : function (k) { return k === words.length - 1; };
+    var official = String(text).trim().toUpperCase() === 'THE OTHER WAY';
+    var hl = official ? function (k) { return k === 1; } : words.length >= 3 ? function (k) { return k > 0 && k < words.length - 1; } : function (k) { return k === words.length - 1; };
     el.innerHTML = words.map(function (w, k) {
-      return '<span class="w' + (hl(k) ? ' hl' : '') + '" aria-hidden="true">' + Array.from(w).map(function (ch) {
-        return '<span class="ch" style="--i:' + (i++) + '">' + Y.esc(ch) + '</span>';
+      return '<span class="w' + (hl(k) ? ' hl' : '') + '" aria-hidden="true">' + Array.from(w).map(function (ch, j) {
+        var accent = official && k === 1 && j === 0;
+        return '<span class="ch' + (accent ? ' kv-o' : '') + '" style="--i:' + (i++) + '">' + Y.esc(ch) + '</span>';
       }).join('') + '</span>';
     }).join(' ');
   }
