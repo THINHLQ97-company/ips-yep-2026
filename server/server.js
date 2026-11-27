@@ -378,7 +378,13 @@ function serveFile(req, res, file, cache) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) return send(res, 404, 'Not found');
     const ext = path.extname(file).toLowerCase();
-    res.writeHead(200, { 'Content-Type': TYPES_MIME[ext] || 'application/octet-stream', 'Content-Length': st.size, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': ext === '.html' ? 'no-cache' : cache });
+    // html/css/js are revalidated on every load (cheap 304 via ETag) so a new deploy never mixes old CSS with new HTML
+    const etag = '"' + st.size.toString(36) + '-' + Math.floor(st.mtimeMs).toString(36) + '"';
+    const headers = { 'Content-Type': TYPES_MIME[ext] || 'application/octet-stream', 'X-Content-Type-Options': 'nosniff', ETag: etag,
+      'Cache-Control': ['.html', '.css', '.js'].includes(ext) ? 'no-cache' : cache };
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, headers); return res.end(); }
+    headers['Content-Length'] = st.size;
+    res.writeHead(200, headers);
     if (req.method === 'HEAD') return res.end();
     fs.createReadStream(file).pipe(res);
   });
