@@ -299,19 +299,34 @@
     var out = {}; D.winners.forEach(function (w) { out[w.attendeeId] = 1; });
     var eligible = D.attendees.filter(function (a) { return !out[a.id]; }).length;
     var stat = function (w) { return w.status === 'absent' ? '<span class="pill p-dim">Vắng mặt</span>' : (w.revealed ? '<span class="pill p-ok">Đã trao</span>' : '<span class="pill p-warn">Chờ công bố</span>'); };
-    m.innerHTML = head('Người trúng giải', won + '/' + total + ' giải đã trao · ' + eligible + ' người còn trong danh sách bốc thăm', '<button class="btn" id="wExp">Xuất Excel (CSV)</button>') +
+    m.innerHTML = head('Người trúng giải', won + '/' + total + ' giải đã trao · ' + eligible + ' người còn trong danh sách bốc thăm', '<button class="btn" id="wExp">Xuất Excel (CSV)</button>' + (W.length ? '<button class="btn bad" data-undo-all>Huỷ toàn bộ kết quả</button>' : '')) +
       '<div class="banner warn" style="background:var(--info-bg);color:var(--info)">Người đã có tên ở đây (kể cả khi bị đánh vắng mặt) tự động bị loại khỏi mọi lượt bốc thăm sau.</div>' +
       '<div class="kpis">' + T.map(function (t) { var n = D.winners.filter(function (w) { return w.tier === t.id && w.status === 'won'; }).length;
-        return '<div class="kpi" style="--c:' + esc(t.color) + '"><div class="l">' + esc(t.name) + '</div><div class="v">' + n + '/' + esc(t.count) + '</div><div class="s">' + esc(t.item) + '</div></div>'; }).join('') + '</div>' +
+        var any = D.winners.some(function (w) { return w.tier === t.id; });
+        return '<div class="kpi" style="--c:' + esc(t.color) + '"><div class="l">' + esc(t.name) + '</div><div class="v">' + n + '/' + esc(t.count) + '</div><div class="s">' + esc(t.item) + '</div>' +
+          (any ? '<button class="x" style="margin-top:8px" data-undo-tier="' + esc(t.id) + '">Quay lại giải này</button>' : '') + '</div>'; }).join('') + '</div>' +
       '<div class="table-wrap"><table><thead><tr><th>Giải</th><th>Mã</th><th>Họ và tên</th><th>Khối · Phòng ban</th><th>Liên hệ</th><th>Giờ bốc</th><th>Trạng thái</th><th></th></tr></thead><tbody>' +
       (W.length ? W.map(function (w) {
         var a = byId[w.attendeeId] || {};
         return '<tr><td><b>' + esc(w.tierName) + '</b><span class="s">' + esc(w.item) + '</span></td><td class="code">' + esc(w.code) + '</td><td><b>' + esc(w.name) + '</b></td>' +
           '<td>' + esc(w.type || '') + '<span class="s">' + esc(w.dept || '') + '</span></td><td>' + esc(a.phone || '—') + '<span class="s">' + esc(a.email || '') + '</span></td>' +
           '<td>' + esc(Y.fmtT(w.at)) + '</td><td>' + stat(w) + '</td>' +
-          '<td>' + (w.status === 'absent' ? '<button class="x" data-st="won" data-id="' + esc(w.id) + '">Đổi thành đã trao</button>' : '<button class="x" data-st="absent" data-id="' + esc(w.id) + '">Đánh vắng mặt</button>') + '</td></tr>';
+          '<td style="white-space:nowrap">' + (w.status === 'absent' ? '<button class="x" data-st="won" data-id="' + esc(w.id) + '">Đổi thành đã trao</button>' : '<button class="x" data-st="absent" data-id="' + esc(w.id) + '">Đánh vắng mặt</button>') +
+          ' <button class="x" data-undo="' + esc(w.id) + '" title="Xoá kết quả này: giải được bốc lại, người này quay về danh sách bốc thăm">Huỷ kết quả</button></td></tr>';
       }).join('') : '<tr><td colspan="8" class="empty">Chưa có ai trúng giải.</td></tr>') + '</tbody></table></div>';
     $('#wExp').addEventListener('click', function () { location.href = '/admin/api/export.csv'; });
+    $$('[data-undo]', m).forEach(function (b) {
+      var w = D.winners.find(function (x) { return x.id === b.dataset.undo; });
+      b.addEventListener('click', function () { undoDialog('Huỷ kết quả ' + w.tierName + ' của ' + w.code + ' · ' + w.name, 'Giải này sẽ được bốc lại và ' + w.name + ' quay về danh sách bốc thăm.', { id: w.id }); });
+    });
+    $$('[data-undo-tier]', m).forEach(function (b) {
+      var t = T.find(function (x) { return x.id === b.dataset.undoTier; });
+      var n = D.winners.filter(function (w) { return w.tier === t.id; }).length;
+      b.addEventListener('click', function () { undoDialog('Quay lại ' + t.name + ' (' + t.item + ')', 'Xoá ' + n + ' kết quả của giải này. Tất cả ' + t.count + ' giải được bốc lại; những người này quay về danh sách bốc thăm.', { tier: t.id }); });
+    });
+    $$('[data-undo-all]', m).forEach(function (b) {
+      b.addEventListener('click', function () { undoDialog('Huỷ toàn bộ kết quả bốc thăm', 'Xoá cả ' + D.winners.length + ' kết quả. Mọi giải được bốc lại từ đầu.', { all: true }); });
+    });
     $$('[data-st]', m).forEach(function (b) {
       b.addEventListener('click', function () {
         var w = D.winners.find(function (x) { return x.id === b.dataset.id; });
@@ -319,6 +334,24 @@
         if (!confirm(msg)) return;
         api('/admin/api/winner', { body: { id: w.id, status: b.dataset.st } }).then(function () { toast('Đã cập nhật'); load(); }).catch(fail);
       });
+    });
+  }
+
+  /* Undoing results always asks for the BTC password again */
+  function undoDialog(title, text, target) {
+    var bg = document.createElement('div'); bg.className = 'otp-bg';
+    bg.innerHTML = '<form class="otp-box" autocomplete="off"><h2>' + esc(title) + '</h2><p>' + esc(text) + '</p>' +
+      '<label class="f">Nhập lại mật khẩu BTC để xác nhận<input class="i" type="password" id="uPw" autocomplete="current-password"></label><div class="err" id="uErr"></div>' +
+      '<div class="row"><button type="button" class="btn" data-x>Thôi</button><button type="submit" class="btn bad" style="background:var(--bad);color:#fff;border-color:var(--bad)">Xác nhận huỷ</button></div></form>';
+    document.body.appendChild(bg); $('#uPw', bg).focus();
+    var close = function () { bg.remove(); };
+    $('[data-x]', bg).addEventListener('click', close);
+    bg.addEventListener('click', function (e) { if (e.target === bg) close(); });
+    $('form', bg).addEventListener('submit', function (e) {
+      e.preventDefault(); var btn = $('[type=submit]', bg); btn.disabled = true;
+      api('/admin/api/winners/undo', { body: Object.assign({ password: $('#uPw', bg).value }, target) })
+        .then(function (r) { close(); toast('Đã huỷ ' + r.removed + ' kết quả. Giải có thể bốc lại.'); load(); })
+        .catch(function (er) { if (er.status === 401) { close(); return fail(er); } $('#uErr', bg).textContent = er.error; btn.disabled = false; $('#uPw', bg).select(); });
     });
   }
 
@@ -360,7 +393,10 @@
     $('#smpx').addEventListener('click', function () { if (confirm('Xoá toàn bộ khách mẫu?')) api('/admin/api/sample', { body: { clear: true } }).then(function () { toast('Đã xoá khách mẫu'); load(); }).catch(fail); });
     $('#exp2').addEventListener('click', function () { location.href = '/admin/api/export.csv'; });
     $$('[data-reset]', m).forEach(function (b) {
-      b.addEventListener('click', function () { if (!confirm(b.textContent + '?')) return; api('/admin/api/reset', { body: { what: b.dataset.reset } }).then(function () { toast('Đã xoá'); load(); }).catch(fail); });
+      b.addEventListener('click', function () {
+        if (b.dataset.reset === 'winners') return undoDialog('Xoá kết quả bốc thăm', 'Xoá toàn bộ kết quả. Mọi giải được bốc lại từ đầu.', { all: true });
+        if (!confirm(b.textContent + '?')) return; api('/admin/api/reset', { body: { what: b.dataset.reset } }).then(function () { toast('Đã xoá'); load(); }).catch(fail);
+      });
     });
   }
 

@@ -336,10 +336,30 @@ async function admin(req, res, url) {
     changed(true);
     return send(res, 200, { ok: true });
   }
+  // Undo prize results: one winner, a whole tier, or everything. Always asks for the BTC password again.
+  if (p === '/admin/api/winners/undo' && req.method === 'POST') {
+    const b = await readJson(req);
+    const key = 'undo-fail:' + ip, t = now(), fails = (buckets.get(key) || []).filter((x) => t - x < 600e3);
+    if (fails.length >= 5) return send(res, 429, { error: 'Sai mật khẩu quá nhiều lần. Vui lòng thử lại sau 10 phút.' });
+    if (!sameSecret(String(b.password || '').trim(), ADMIN_PASSWORD)) {
+      fails.push(t); buckets.set(key, fails);
+      return send(res, 403, { error: 'Sai mật khẩu BTC. Còn ' + (5 - fails.length) + ' lần thử.' });
+    }
+    let gone;
+    if (b.id) gone = db.winners.filter((w) => w.id === b.id);
+    else if (b.tier) gone = db.winners.filter((w) => w.tier === b.tier);
+    else if (b.all) gone = db.winners.slice();
+    else return send(res, 400, { error: 'Thiếu giải cần huỷ.' });
+    if (!gone.length) return send(res, 404, { error: 'Không có kết quả để huỷ.' });
+    const ids = new Set(gone.map((w) => w.id));
+    db.winners = db.winners.filter((w) => !ids.has(w.id));
+    store.audit('huỷ kết quả bốc thăm', 'BTC', gone.map((w) => `${w.tierName}: ${w.code} ${w.name}`).join('; ').slice(0, 500));
+    changed(true);
+    return send(res, 200, { ok: true, removed: gone.length });
+  }
   if (p === '/admin/api/reset' && req.method === 'POST') {
     const b = await readJson(req);
     if (b.what === 'votes') db.votes = {};
-    else if (b.what === 'winners') db.winners = [];
     else return send(res, 400, { error: 'Thiếu mục cần xoá.' });
     store.audit('xoá ' + b.what, 'BTC');
     changed(true);

@@ -160,6 +160,11 @@ td .s { display: block; font-size: 12px; color: var(--mute); }
 .wl li.absent { opacity: .55; text-decoration: line-through; }
 
 .toast.bad { background: var(--bad); }
+.otp-bg { position: fixed; inset: 0; background: rgba(10,15,40,.5); z-index: 40; display: grid; place-items: center; padding: 16px; }
+.otp-box { width: 100%; max-width: 420px; background: var(--panel); border-radius: 14px; padding: 24px; display: grid; gap: 12px; box-shadow: 0 30px 80px rgba(0,0,0,.3); border-top: 4px solid var(--bad); }
+.otp-box h2 { margin: 0; font: 700 19px/26px var(--f-display); }
+.otp-box p { margin: 0; color: var(--mute); font-size: 14px; }
+.otp-box .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--brand); color: #fff; padding: 10px 16px; border-radius: 8px; z-index: 30; font-size: 14px; }
 
 @media (max-width: 1100px) { .draw-grid { grid-template-columns: 1fr; } .bgs { grid-template-columns: 1fr 1fr; } .edr.z { grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr); } }
