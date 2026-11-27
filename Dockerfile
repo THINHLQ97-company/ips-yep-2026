@@ -7,5 +7,6 @@ COPY . .
 RUN chmod -R a+rX /app && mkdir -p /app/data && chown -R node:node /app
 USER node
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD wget -qO- http://127.0.0.1:3000/api/status >/dev/null || exit 1
+# health check follows PORT, so it still passes when the host runs the app on another port
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/api/status" >/dev/null || exit 1
 CMD ["node", "index.js"]
