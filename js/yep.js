@@ -113,7 +113,7 @@
         '<div class="formrow"><label class="label" for="ckName">Họ và tên <em>*</em></label><input id="ckName" autocomplete="name" placeholder="Nguyễn Văn A"></div>' +
         '<div class="formrow"><label class="label" for="ckPhone">Số điện thoại <em>*</em></label><input id="ckPhone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="16" placeholder="0912 345 678"></div>' +
         '<div class="formrow"><label class="label" for="ckTitle">Chức vụ <em>*</em></label><input id="ckTitle" autocomplete="organization-title" placeholder="VD: Marketing Manager"></div>' +
-        '<div class="formrow"><span class="label">Đơn vị <em>*</em></span><div class="seg seg3">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="ckType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
+        '<div class="formrow"><span class="label">Đơn vị <em>*</em></span><div class="seg">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="ckType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
         '<div class="formrow" id="ckDeptRow"><label class="label" for="ckDept">Khối/Phòng ban/Dự án <em>*</em></label><select id="ckDept"><option value="">Chọn khối/phòng ban/dự án</option>' + Y.DEPTS.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></div>' +
         '<input type="text" name="website" id="ckWeb" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">' +
         '<p class="form-err" id="ckErr"></p>' +

@@ -6,7 +6,7 @@
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var DEPTS = ['Ban Giám Đốc', 'Phòng Kế Toán', 'Khối Vận Hành', 'Khối Hỗ Trợ', 'Khối CNTT', 'Phòng Pháp Chế', 'Marketing', 'Khối Kinh Doanh', 'Green View', 'Mỹ Khang', 'Galaxy 9', 'Grand Riverside', 'Garden Plaza', 'Calla Garden', 'La Casa', 'Riverside', 'Lucky Palace', 'Him Lam CL', 'Lavila', 'Saigon Asiana', 'Sunrise Riverside', 'Tresor', 'The Habitat', 'Hưng Phúc'];
-  var TYPES = ['IPS', 'FIFA', 'Sakura'];   // only IPS staff pick a department
+  var TYPES = ['IPS', 'FIFA'];   // only IPS staff pick a department
   var DEPT_TYPE = 'IPS';
   /* "mArketing manager" -> "Marketing Manager" */
   function titleCase(s) { return String(s || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('vi').replace(/(^|[\s\-\/(])(\p{L})/gu, function (m, a, b) { return a + b.toLocaleUpperCase('vi'); }); }

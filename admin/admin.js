@@ -3,7 +3,7 @@
   'use strict';
   var Y = window.YEP, $ = Y.$, $$ = Y.$$, esc = Y.esc, api = Y.api;
   var root = $('#root');
-  var D = null, ST = null, tab = (location.hash || '#overview').slice(1), q = '', typeF = '';
+  var D = null, ST = null, tab = (location.hash || '#overview').slice(1), q = '', typeF = '', deptF = '';
   var TABS = [['overview', 'Tổng quan'], ['checkins', 'Danh sách check-in'], ['vote', 'Bình chọn'], ['prizes', 'Giải thưởng'], ['draw', 'Bốc thăm'], ['winners', 'Người trúng giải'], ['look', 'Giao diện & sự kiện'], ['data', 'Dữ liệu']];
 
   function toast(t, bad) { var el = $('#toast'); el.textContent = t; el.className = 'toast' + (bad ? ' bad' : ''); clearTimeout(toast.t); toast.t = setTimeout(function () { el.className = 'toast hidden'; }, 2800); }
@@ -99,19 +99,40 @@
   function vCheckins(m, full) {
     if (full || !$('#tbl')) {
       m.innerHTML = head('Danh sách check-in', '', '<button class="btn" id="exp">Xuất Excel (CSV)</button><button class="btn primary" id="addBtn">+ Check-in hộ</button>') +
-        '<div class="filters"><input class="i" id="q" placeholder="Tìm tên, mã, SĐT, chức vụ, khối/phòng ban/dự án" value="' + esc(q) + '">' +
-        [''].concat(Y.TYPES).map(function (t) { return '<button class="chip' + (typeF === t ? ' on' : '') + '" data-t="' + t + '">' + (t || 'Tất cả') + '</button>'; }).join('') + '<span class="hint" id="cnt"></span></div>' +
+        '<div class="filters"><input class="i" id="q" aria-label="Tìm người check-in" placeholder="Tìm tên, mã, SĐT, chức vụ, khối/phòng ban/dự án" value="' + esc(q) + '">' +
+        '<label for="unitF">Đơn vị <select class="i" id="unitF"></select></label>' +
+        '<label for="deptF">Khối/Phòng ban/Dự án <select class="i" id="deptF"></select></label>' +
+        '<span class="hint" id="cnt"></span></div>' +
         '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Số điện thoại</th><th>Chức vụ</th><th>Đơn vị</th><th>Khối/Phòng ban/Dự án</th><th>Check-in</th><th>Bình chọn</th><th>Giải thưởng</th><th></th></tr></thead><tbody id="tbl"></tbody></table></div>';
       $('#q').addEventListener('input', function () { q = this.value; vCheckins(m, false); });
-      $$('.filters .chip').forEach(function (b) { b.addEventListener('click', function () { typeF = b.dataset.t; $$('.filters .chip').forEach(function (x) { x.classList.toggle('on', x === b); }); vCheckins(m, false); }); });
+      $('#unitF').addEventListener('change', function () {
+        typeF = this.value;
+        if (typeF && typeF !== Y.DEPT_TYPE) deptF = '';
+        vCheckins(m, false);
+      });
+      $('#deptF').addEventListener('change', function () { deptF = this.value; vCheckins(m, false); });
       $('#exp').addEventListener('click', function () { location.href = '/admin/api/export.csv'; });
       $('#addBtn').addEventListener('click', drawerCheckin);
     }
+    // Rebuild options on live refresh too, retaining the current selection.
+    var units = Y.TYPES.slice(), depts = Y.DEPTS.slice();
+    D.attendees.forEach(function (a) {
+      if (a.type && units.indexOf(a.type) < 0) units.push(a.type);
+      if (a.type === Y.DEPT_TYPE && a.dept && depts.indexOf(a.dept) < 0) depts.push(a.dept);
+    });
+    if (typeF && units.indexOf(typeF) < 0) units.push(typeF);
+    if (deptF && depts.indexOf(deptF) < 0) depts.push(deptF);
+    function options(values, selected) {
+      return [''].concat(values).map(function (v) { return '<option value="' + esc(v) + '"' + (v === selected ? ' selected' : '') + '>' + esc(v || 'Tất cả') + '</option>'; }).join('');
+    }
+    $('#unitF').innerHTML = options(units, typeF);
+    $('#deptF').innerHTML = options(depts, deptF);
+    $('#deptF').disabled = !!typeF && typeF !== Y.DEPT_TYPE;
     var perfs = {}; D.settings.performances.forEach(function (p) { perfs[p.id] = p; });
     var wonBy = {}; D.winners.forEach(function (w) { wonBy[w.attendeeId] = w; });
     var s = q.toLowerCase().trim(), sd = s.replace(/\D/g, '');
     var rows = D.attendees.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).filter(function (a) {
-      return (!typeF || a.type === typeF) && (!s || [a.code, a.name, a.title, a.type, a.dept].join(' ').toLowerCase().indexOf(s) >= 0 ||
+      return (!typeF || a.type === typeF) && (!deptF || (a.type === Y.DEPT_TYPE && a.dept === deptF)) && (!s || [a.code, a.name, a.title, a.type, a.dept].join(' ').toLowerCase().indexOf(s) >= 0 ||
         (sd.length >= 4 && String(a.phone || '').indexOf(sd.replace(/^84/, '0')) >= 0));
     });
     $('#cnt').textContent = rows.length + ' / ' + D.attendees.length + ' người';

@@ -34,7 +34,7 @@ const db = store.db;
 let SESSION_SECRET = '';   // set in start(), once the store has loaded
 
 const DEPTS = ['Ban Giám Đốc', 'Phòng Kế Toán', 'Khối Vận Hành', 'Khối Hỗ Trợ', 'Khối CNTT', 'Phòng Pháp Chế', 'Marketing', 'Khối Kinh Doanh', 'Green View', 'Mỹ Khang', 'Galaxy 9', 'Grand Riverside', 'Garden Plaza', 'Calla Garden', 'La Casa', 'Riverside', 'Lucky Palace', 'Him Lam CL', 'Lavila', 'Saigon Asiana', 'Sunrise Riverside', 'Tresor', 'The Habitat', 'Hưng Phúc'];
-const TYPES = ['IPS', 'FIFA', 'Sakura'];   // only IPS staff pick a department
+const TYPES = ['IPS', 'FIFA'];   // only IPS staff pick a department
 const DEPT_TYPE = 'IPS';
 
 /* ── helpers ── */
@@ -61,7 +61,7 @@ function validate(b) {
   if (v.title.length < 2) return [null, 'Vui lòng nhập chức vụ.'];
   if (!TYPES.includes(v.type)) return [null, 'Vui lòng chọn đơn vị.'];
   if (v.type === DEPT_TYPE) { if (!DEPTS.includes(v.dept)) return [null, 'Vui lòng chọn khối/phòng ban/dự án.']; }
-  else v.dept = '';   // FIFA, Sakura: no department
+  else v.dept = '';   // FIFA: no department
   return [v, ''];
 }
 function freeCode() {
@@ -392,7 +392,7 @@ async function admin(req, res, url) {
     let n = 0;
     const TITLES = ['Nhân Viên', 'Chuyên Viên', 'Trưởng Nhóm', 'Trưởng Phòng', 'Quản Lý Dự Án', 'Kỹ Thuật Viên'];
     for (let i = db.attendees.filter((a) => a.sample).length; i < 30; i++) {
-      const type = crypto.randomInt(5) ? 'IPS' : TYPES[1 + crypto.randomInt(2)];
+      const type = crypto.randomInt(5) ? 'IPS' : 'FIFA';
       const v = { name: `${FN[crypto.randomInt(10)]} ${MN[crypto.randomInt(8)]} ${LN[crypto.randomInt(16)]}`, phone: '09' + String(crypto.randomInt(1e8)).padStart(8, '0'), title: TITLES[crypto.randomInt(TITLES.length)], type, dept: type === 'IPS' ? DEPTS[crypto.randomInt(DEPTS.length)] : '' };
       if (phoneOwner(v.phone) || db.attendees.some((a) => nameKey(a) === nameKey(v))) continue;
       const a = createAttendee(v, 'btc', true);

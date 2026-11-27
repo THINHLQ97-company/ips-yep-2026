@@ -3,7 +3,8 @@
   "private": true,
   "description": "IPS Year End Party 2026 – The Other Way | Mở lối đi riêng: check-in, bình chọn văn nghệ, bốc thăm may mắn và dashboard BTC",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

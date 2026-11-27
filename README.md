@@ -47,9 +47,10 @@ Lần đầu chạy với PostgreSQL, nếu còn file `data/db.json` cũ thì d�
 
 ## Luồng sự kiện
 
-1. **Check-in**: quét QR tại bàn đăng ký → điền Họ tên, Số điện thoại, Chức vụ (tự viết hoa chữ cái đầu), Đơn vị (IPS / FIFA / Sakura), Khối/Phòng ban/Dự án (chỉ khi chọn IPS) → nhận mã số ngẫu nhiên 001–999 (không trùng).
+1. **Check-in**: quét QR tại bàn đăng ký → điền Họ tên, Số điện thoại, Chức vụ (tự viết hoa chữ cái đầu), Đơn vị (IPS / FIFA), Khối/Phòng ban/Dự án (chỉ khi chọn IPS) → nhận mã số ngẫu nhiên 001–999 (không trùng).
    Trình duyệt được ghi nhớ 30 ngày; mở lại trang là thấy vé, mã số, lịch sử các lần truy cập. Đổi máy: "Đã check-in trên máy khác?" → nhập họ tên + số điện thoại hoặc mã số (BTC cũng tra được trong dashboard).
    Mỗi số điện thoại chỉ check-in một lần (SĐT là trường dò trùng; nhập +84/84 cũng được quy về 0…). BTC có thể check-in hộ trong dashboard; trùng họ tên nhưng khác SĐT thì dashboard chỉ cảnh báo.
+   Dashboard danh sách check-in có bộ lọc **Đơn vị** và **Khối/Phòng ban/Dự án**, kết hợp đồng thời với ô tìm kiếm. Bộ lọc phòng ban áp dụng cho IPS; chọn FIFA hoặc đơn vị cũ sẽ xoá và vô hiệu hoá bộ lọc phòng ban. Dữ liệu Sakura cũ vẫn được giữ và có thể lọc/xem; không nhận check-in Sakura mới. Xuất CSV vẫn gồm toàn bộ danh sách.
 2. **Bình chọn**: BTC bật "Cổng bình chọn" trong dashboard. Người đã check-in chọn 1 tiết mục (đổi ý được khi cổng còn mở).
    `/screen/` hiển thị mỗi tiết mục là một tòa nhà 3D, **mỗi 10 phiếu thêm một tầng** (chỉnh ở tab Bình chọn); tòa cao nhất được thắp biểu tượng IPS.
 3. **Bốc thăm** (tab Bốc thăm, phím F toàn màn hình), **2 lần bấm** (Space, nút hoặc bấm vào sân khấu):
