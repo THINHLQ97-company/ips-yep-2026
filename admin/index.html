@@ -78,6 +78,11 @@ main.content { padding: 24px 28px 60px; min-width: 0; }
 .bar-row .b { height: 14px; border-radius: 999px; background: var(--dim-bg); overflow: hidden; }
 .bar-row .b i { display: block; height: 100%; border-radius: inherit; background: var(--c, var(--accent)); }
 .bar-row .n { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.qr-tabs { display: flex; gap: 4px; padding: 4px; margin-bottom: 14px; background: var(--dim-bg); border-radius: 10px; }
+.qr-tabs button { flex: 1; padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; font: 600 14px var(--f-display); color: var(--mute); }
+.qr-tabs button.on { background: #fff; color: var(--brand); box-shadow: 0 1px 3px rgba(20,27,61,.12); }
+.qrc.big { max-width: 340px; margin: 0 auto; }
+.qr-pane { text-align: center; }
 .qrs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .qrc { text-align: center; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .qrc .q { aspect-ratio: 1; }

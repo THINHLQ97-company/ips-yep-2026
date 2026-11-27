@@ -74,6 +74,7 @@
   function render() {
     if (!st) return;
     $$('[data-f]').forEach(function (el) { var v = st[el.dataset.f]; if (v) el.textContent = v; });
+    if (location.hash === '#vote') { location.replace('/vote/'); return; }
     if (st.bg && Y.safeImg(st.bg)) root.style.setProperty('--bg', 'url("' + st.bg + '")');
     if (st.bgM && Y.safeImg(st.bgM)) { root.style.setProperty('--bgm', 'url("' + st.bgM + '")'); if ($('#heroArt').getAttribute('src') !== st.bgM) $('#heroArt').src = st.bgM; }
     Y.fx.splitTitle($('#themeTitle'), st.theme || 'The Other Way');
@@ -84,7 +85,7 @@
     $('#facts').innerHTML = facts.map(function (f) { return '<span class="glass ring"><b>' + esc(f[0]) + '</b>' + esc(f[1]) + '</span>'; }).join('');
     $$('.liveCount').forEach(function (el) { Y.fx.countTo(el, st.checkins); });
     $('#heroCta').textContent = me ? 'Xem vé của bạn · ' + me.code : 'Check-in ngay';
-    renderCheckin(); renderVote(); renderPrizes();
+    renderCheckin(); renderVoteLinks(); renderPrizes();
   }
 
   var ckMode = '', want = 'form';   // what the check-in panel shows now / should show
@@ -148,31 +149,25 @@
       (perf ? '<span class="pill" style="--c:' + esc(perf.color) + '"><i></i>Đã bình chọn: ' + esc(perf.name) + '</span>' : '') + '</div>' +
       wins.map(function (w) { return '<div class="won">Chúc mừng! Bạn trúng ' + esc(w.tierName) + ': ' + esc(w.item) + '. Mời bạn lên sân khấu nhận quà.</div>'; }).join('') +
       '<p class="hist">Lịch sử truy cập: ' + esc(hist) + '</p></div></div></div>' +
-      '<div class="actions" style="margin-top:28px;justify-content:flex-start"><button type="button" class="cta" data-go="vote">Bình chọn văn nghệ</button><button type="button" class="cta line" data-go="prizes">Xem giải thưởng</button></div>';
+      '<div class="actions" style="margin-top:28px;justify-content:flex-start"><a class="cta vote-cta" href="/vote/" data-vote-link>Bình chọn văn nghệ</a><button type="button" class="cta line" data-go="prizes">Xem giải thưởng</button></div>';
   }
 
-  function renderVote() {
-    var open = !!st.votingOpen, P = st.performances || [], can = open && me;
-    var pill = $('#voteStatus'); pill.className = 'status-pill glass' + (open ? ' open' : '');
-    pill.innerHTML = '<i></i>' + (open ? 'Cổng bình chọn đang mở' : 'Cổng bình chọn đang đóng');
-    $('#voteNote').innerHTML = !meLoaded ? '' : !me ? '<div class="note-box glass ring">Bạn cần check-in trước khi bình chọn. <button type="button" class="linkbtn" data-go="checkin">Check-in ngay</button></div>'
-      : (myVote ? '<div class="note-box glass ring">Đã ghi nhận phiếu của bạn. ' + (open ? 'Bạn vẫn có thể đổi ý trước khi cổng đóng.' : '') + '</div>' : '');
-    var list = $('#voteList'); list.style.setProperty('--n', Math.min(Math.max(P.length, 1), 4));
-    list.innerHTML = P.length ? P.map(function (p, i) {
-      var sel = myVote && myVote.perf === p.id;
-      return '<button type="button" class="card3d glass ring tilt' + (sel ? ' sel' : '') + '" style="--c:' + esc(p.color) + '" data-perf="' + esc(p.id) + '"' + (can ? '' : ' disabled') + '>' +
-        '<span class="bar"></span><span class="ix">' + String(i + 1).padStart(2, '0') + '</span><h3>' + esc(p.name) + '</h3><span class="team">' + esc(p.team) + '</span>' +
-        '<span class="pick">' + (sel ? '✓ Bạn đã chọn tiết mục này' : can ? 'Chọn tiết mục này →' : '') + '</span></button>';
-    }).join('') : '<div class="note-box glass ring">BTC sẽ cập nhật danh sách tiết mục sớm.</div>';
-    $$('[data-perf]', list).forEach(function (b) {
-      b.addEventListener('click', function () {
-        if (!can || (myVote && myVote.perf === b.dataset.perf)) return;
-        Y.api('/api/vote', { body: { perf: b.dataset.perf } }).then(function (d) { myVote = { perf: d.perf }; Y.toast('Đã ghi nhận bình chọn!'); render(); })
-          .catch(function (er) { Y.toast(er.error); });
-      });
+  /* the way to /vote/ only lights up while the BTC has voting open */
+  function renderVoteLinks() {
+    var open = !!st.votingOpen;
+    $$('[data-vote-link]').forEach(function (el) {
+      el.classList.toggle('on', open);
+      el.setAttribute('aria-disabled', open ? 'false' : 'true');
+      el.title = open ? 'Cổng bình chọn đang mở' : 'Cổng bình chọn chưa mở';
+      if (el.classList.contains('btn-vote')) el.hidden = !open;
+      if (el.classList.contains('vote-cta')) el.textContent = open ? 'Bình chọn văn nghệ →' : 'Bình chọn văn nghệ (chưa mở)';
     });
   }
-
+  root.addEventListener('click', function (e) {
+    var v = e.target.closest('[data-vote-link]'); if (!v) return;
+    e.preventDefault();
+    if (st && st.votingOpen) location.href = '/vote/'; else Y.toast('Cổng bình chọn chưa mở. Nút sẽ sáng khi BTC mở bình chọn.');
+  });
   function renderPrizes() {
     var T = st.prizes || [], W = st.winners || [];
     $('#prizeMini').innerHTML = T.map(function (t) { return '<div style="--c:' + esc(t.color) + '"><div class="pic">' + Y.prizePic(t) + '</div><b>' + esc(t.name) + '</b>' + esc(t.count) + ' × ' + esc(t.item) + '</div>'; }).join('');

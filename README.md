@@ -7,7 +7,8 @@ Cấu trúc giống repo MDF 2027: Node.js thuần, không framework. Dữ liệ
 | Đường dẫn | Dành cho | Nội dung |
 |---|---|---|
 | `/` | Nhân sự (quét QR) | Check-in nhận mã số may mắn 001–999, vé 3D, lịch sử truy cập, bình chọn, xem giải thưởng |
-| `/#checkin`, `/#vote` | Link in trên mã QR | Mở thẳng vào phần check-in / bình chọn |
+| `/#checkin` | Link in trên mã QR check-in | Mở thẳng vào phần check-in |
+| `/vote/` | Nhân sự (QR bình chọn) | Trang bình chọn văn nghệ riêng. Các nút dẫn tới trang này chỉ sáng khi BTC mở cổng bình chọn trong dashboard |
 | `/screen/` | Màn hình LED (không cần đăng nhập) | Tòa tháp 3D bình chọn realtime + QR bình chọn |
 | `/admin/` | BTC (mật khẩu) | Tổng quan, danh sách check-in, check-in hộ, tiết mục, giải thưởng, bốc thăm 3D, giao diện, dữ liệu |
 

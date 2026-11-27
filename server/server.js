@@ -43,6 +43,7 @@ const pad3 = (n) => String(n).padStart(3, '0');
 const str = (v, max = 120) => String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, max);
 const normPhone = (p) => String(p || '').replace(/\D/g, '').replace(/^84/, '0');
 const isColor = (c) => /^#[0-9a-f]{6}$/i.test(String(c || ''));
+const baseOf = (u) => { try { const x = new URL(u); return (x.origin + x.pathname).replace(/\/+$/, ''); } catch (e) { return String(u || '').split('#')[0].replace(/\/+$/, ''); } };
 const isUpload = (u) => /^\/uploads\/[\w.-]+$/.test(String(u || ''));
 
 function validate(b) {
@@ -80,7 +81,7 @@ function publicStatus() {
     votingOpen: s.votingOpen, votesPerFloor: s.votesPerFloor, bg: s.bg, bgM: s.bgM, bgStage: s.bgStage,
     performances: s.performances, prizes: s.prizes, votes, totalVotes: Object.keys(db.votes).length,
     winners: revealed().map((w) => ({ id: w.id, code: w.code, name: w.name, dept: w.dept, tier: w.tier, tierName: w.tierName, item: w.item, at: w.at, status: w.status })),
-    checkins: db.attendees.length, publicUrl: (s.publicUrl || BASE_URL).replace(/\/$/, '')
+    checkins: db.attendees.length, publicUrl: baseOf(s.publicUrl || BASE_URL)
   };
 }
 
@@ -285,7 +286,7 @@ async function admin(req, res, url) {
   if (p === '/admin/api/settings' && req.method === 'POST') {
     const b = await readJson(req), s = db.settings;
     for (const k of ['eventName', 'theme', 'themeVi', 'eventDate', 'venue']) if (k in b) s[k] = str(b[k], 120);
-    if ('publicUrl' in b) { const u = str(b.publicUrl, 300); if (u && !/^https?:\/\//.test(u)) return send(res, 400, { error: 'Link phải bắt đầu bằng https://' }); s.publicUrl = u; }
+    if ('publicUrl' in b) { const u = str(b.publicUrl, 300); if (u && !/^https?:\/\//.test(u)) return send(res, 400, { error: 'Link phải bắt đầu bằng https://' }); s.publicUrl = baseOf(u); }
     if ('votingOpen' in b) s.votingOpen = !!b.votingOpen;
     if ('votesPerFloor' in b) s.votesPerFloor = Math.max(1, Math.min(100, parseInt(b.votesPerFloor, 10) || 10));
     if ('raceSeconds' in b) s.raceSeconds = Math.max(5, Math.min(120, parseInt(b.raceSeconds, 10) || 20));
@@ -433,7 +434,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (url.pathname.startsWith('/api/')) return await api(req, res, url);
     if (url.pathname.startsWith('/admin/api/')) return await admin(req, res, url);
-    if (url.pathname === '/admin' || url.pathname === '/screen') { res.writeHead(301, { Location: url.pathname + '/' }); return res.end(); }
+    if (url.pathname === '/admin' || url.pathname === '/screen' || url.pathname === '/vote') { res.writeHead(301, { Location: url.pathname + '/' }); return res.end(); }
     if (req.method === 'GET' || req.method === 'HEAD') return serveStatic(req, res, url);
     send(res, 405, { error: 'Method not allowed' });
   } catch (e) {

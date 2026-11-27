@@ -51,7 +51,7 @@
     V(m, full);
   }
   function head(title, sub, right) { return '<div class="head"><div><h1>' + title + '</h1>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div><div class="right">' + (right || '') + '</div></div>'; }
-  function baseUrl() { return ((D.settings.publicUrl || D.defaultUrl || location.origin) + '').replace(/\/$/, ''); }
+  function baseUrl() { var u = (D.settings.publicUrl || D.defaultUrl || location.origin) + ''; try { var x = new URL(u); return (x.origin + x.pathname).replace(/\/+$/, ''); } catch (e) { return u.split('#')[0].replace(/\/+$/, ''); } }
 
   function vOverview(m) {
     var A = D.attendees, proj = A.filter(function (a) { return a.type === 'Dự án'; }).length;
@@ -60,19 +60,41 @@
     var by = {}; A.forEach(function (a) { by[a.dept] = (by[a.dept] || 0) + 1; });
     var depts = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; }), mx = Math.max.apply(null, [1].concat(depts.map(function (d) { return by[d]; })));
     var recent = A.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).slice(0, 8);
-    var ck = baseUrl() + '/#checkin', vt = baseUrl() + '/#vote';
+    var ck = baseUrl() + '/#checkin', vt = baseUrl() + '/vote/';
     m.innerHTML = head('Tổng quan', 'Số liệu cập nhật trực tiếp khi có người check-in hoặc bình chọn.') +
       '<div class="kpis">' + [['Đã check-in', A.length, '', '#0089cf'], ['Khối Dự án', proj, A.length ? Math.round(proj / A.length * 100) + '%' : '', '#1849a9'], ['Khối Hội sở', A.length - proj, A.length ? Math.round((A.length - proj) / A.length * 100) + '%' : '', '#ed1c24'],
         ['Phiếu bình chọn', votes, D.settings.votingOpen ? 'Cổng đang mở' : 'Cổng đang đóng', '#9b51e0'], ['Giải đã trao', won + '/' + prizeTotal, '', '#ffc928']].map(function (k) {
         return '<div class="kpi" style="--c:' + k[3] + '"><div class="l">' + k[0] + '</div><div class="v">' + esc(k[1]) + '</div><div class="s">' + esc(k[2]) + '</div></div>'; }).join('') + '</div>' +
       '<div class="grid2"><div class="panel"><h2>Theo phòng ban</h2><div class="bars">' + (depts.length ? depts.map(function (d, i) {
         return '<div class="bar-row" style="--c:' + Y.PALETTE[i % Y.PALETTE.length] + '"><span>' + esc(d) + '</span><div class="b"><i style="width:' + (by[d] / mx * 100) + '%"></i></div><span class="n">' + by[d] + '</span></div>'; }).join('') : '<div class="empty">Chưa có ai check-in.</div>') + '</div></div>' +
-      '<div class="panel"><h2>Mã QR in tại bàn đăng ký</h2><div class="qrs"><div class="qrc"><div class="q">' + Y.qrSvg(ck) + '</div><b>Quét để check-in</b><a href="' + esc(ck) + '" target="_blank" rel="noopener">' + esc(ck) + '</a></div>' +
-      '<div class="qrc"><div class="q">' + Y.qrSvg(vt) + '</div><b>Quét để bình chọn</b><a href="' + esc(vt) + '" target="_blank" rel="noopener">' + esc(vt) + '</a></div></div>' +
-      '<p class="hint" style="margin-top:10px">Link lấy từ PUBLIC_URL hoặc ô "Link công khai" ở tab Giao diện & sự kiện. Chuột phải vào mã QR để lưu ảnh in.</p></div></div>' +
+      '<div class="panel"><div class="qr-tabs" role="tablist"><button type="button" role="tab" data-qr="ck" class="' + (qrTab === 'ck' ? 'on' : '') + '">Mã QR Check-in</button><button type="button" role="tab" data-qr="vt" class="' + (qrTab === 'vt' ? 'on' : '') + '">Mã QR Bình chọn</button></div>' +
+      [['ck', ck, 'Quét để check-in', 'In và đặt tại bàn đăng ký.', 'ips-yep-qr-checkin.png'], ['vt', vt, 'Quét để bình chọn', 'Chiếu lên màn hình hoặc in khi MC mời khán giả bình chọn. Trang chỉ nhận phiếu khi cổng bình chọn đang mở.', 'ips-yep-qr-binh-chon.png']].map(function (q) {
+        return '<div class="qr-pane" data-pane="' + q[0] + '"' + (qrTab === q[0] ? '' : ' hidden') + '><div class="qrc big"><div class="q">' + Y.qrSvg(q[1]) + '</div><b>' + q[2] + '</b><a href="' + esc(q[1]) + '" target="_blank" rel="noopener">' + esc(q[1]) + '</a></div>' +
+          '<p class="hint" style="margin:10px 0">' + q[3] + '</p><button type="button" class="btn primary" data-png="' + q[0] + '" data-name="' + q[4] + '">Tải ảnh PNG để in</button></div>';
+      }).join('') +
+      '<p class="hint" style="margin-top:10px">Link lấy từ PUBLIC_URL hoặc ô "Link công khai" ở tab Giao diện & sự kiện (chỉ cần nhập địa chỉ trang, ví dụ https://yep.ipscorp.vn).</p></div></div>' +
       '<div class="panel"><h2>Check-in gần nhất</h2><div class="recent">' + (recent.length ? recent.map(function (a) {
         return '<div><b class="code">' + esc(a.code) + '</b><div><b>' + esc(a.name) + '</b> · ' + esc(a.dept) + '</div><span>' + esc(Y.fmtT(a.createdAt)) + '</span></div>'; }).join('') : '<div class="empty">Chưa có dữ liệu.</div>') + '</div></div>';
   }
+
+  /* QR tabs on the overview + PNG export for printing */
+  var qrTab = 'ck';
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-qr]');
+    if (t) { qrTab = t.dataset.qr; $$('[data-qr]').forEach(function (b) { b.classList.toggle('on', b === t); }); $$('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane !== qrTab; }); return; }
+    var d = e.target.closest('[data-png]'); if (!d) return;
+    var svg = $('[data-pane="' + d.dataset.png + '"] svg'); if (!svg) return;
+    var label = d.dataset.png === 'ck' ? 'Quét để check-in' : 'Quét để bình chọn';
+    var img = new Image(), S = 1200;
+    img.onload = function () {
+      var c = document.createElement('canvas'); c.width = S; c.height = S + 160; var x = c.getContext('2d');
+      x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.imageSmoothingEnabled = false; x.drawImage(img, 60, 60, S - 120, S - 120);
+      x.fillStyle = '#091638'; x.font = '700 64px Poppins, sans-serif'; x.textAlign = 'center'; x.fillText(label, S / 2, S + 40);
+      x.font = '500 34px Barlow, sans-serif'; x.fillStyle = '#646d8f'; x.fillText('IPS Year End Party 2026', S / 2, S + 100);
+      var a = document.createElement('a'); a.href = c.toDataURL('image/png'); a.download = d.dataset.name; document.body.appendChild(a); a.click(); a.remove();
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+  });
 
   function vCheckins(m, full) {
     if (full || !$('#tbl')) {

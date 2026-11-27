@@ -25,7 +25,7 @@
     <ul>
       <li data-go="hero">Giới thiệu</li>
       <li data-go="checkin">Check-in</li>
-      <li data-go="vote">Bình chọn</li>
+      <li class="vote-link" data-vote-link aria-disabled="true" title="Cổng bình chọn chưa mở">Bình chọn<i class="lock"></i></li>
       <li data-go="prizes">Giải thưởng</li>
     </ul>
   </nav>
@@ -50,6 +50,7 @@
         <img class="art-img" id="heroArt" src="images/bg-mobile.webp" alt="" aria-hidden="true" width="941" height="1672">
         <div class="cta-row">
           <button type="button" class="btn-shine" id="heroCta" data-go="checkin">Check-in ngay</button>
+          <a class="btn-vote" href="/vote/" data-vote-link hidden><i></i>Bình chọn văn nghệ</a>
           <span class="count-chip glass ring d-only"><i></i><b class="liveCount">0</b>người đã check-in</span>
         </div>
       </div>
@@ -78,17 +79,6 @@
           </div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- 3. Vote -->
-  <section class="yep-page" data-page="vote" id="vote">
-    <div class="yep-container">
-      <h2 class="gt rv"><span class="main">Bình chọn văn nghệ</span><span class="shadow" aria-hidden="true">Bình chọn văn nghệ</span></h2>
-      <span class="desc rv" style="--i:1">Tiết mục nào mở lối ấn tượng nhất? Mỗi người một phiếu, được đổi ý khi cổng bình chọn còn mở.</span>
-      <span class="status-pill glass rv" style="--i:1" id="voteStatus"><i></i>Cổng bình chọn đang đóng</span>
-      <div id="voteNote"></div>
-      <div class="group" id="voteList"></div>
     </div>
   </section>
 

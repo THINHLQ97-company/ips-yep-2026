@@ -24,7 +24,7 @@
     return function update(st) {
       setBg(stage, st.bgStage);
       stage.querySelector('[data-k=event]').textContent = st.eventName || 'IPS Year End Party 2026';
-      var url = (st.publicUrl || location.origin) + '/#vote';
+      var url = (st.publicUrl || location.origin) + '/vote/';
       if (url !== qrUrl) { qrUrl = url; stage.querySelector('[data-k=qr]').innerHTML = Y.qrSvg(url); }
       stage.querySelector('[data-k=open]').textContent = st.votingOpen ? 'Cổng bình chọn đang mở' : 'Cổng bình chọn đang đóng';
       stage.querySelector('[data-k=total]').textContent = st.totalVotes || 0;
