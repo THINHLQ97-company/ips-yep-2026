@@ -54,16 +54,16 @@
   function baseUrl() { var u = (D.settings.publicUrl || D.defaultUrl || location.origin) + ''; try { var x = new URL(u); return (x.origin + x.pathname).replace(/\/+$/, ''); } catch (e) { return u.split('#')[0].replace(/\/+$/, ''); } }
 
   function vOverview(m) {
-    var A = D.attendees, proj = A.filter(function (a) { return a.type === 'Dự án'; }).length;
+    var A = D.attendees;
     var votes = A.filter(function (a) { return a.perf; }).length;
     var prizeTotal = D.settings.prizes.reduce(function (s, t) { return s + (+t.count || 0); }, 0), won = D.winners.filter(function (w) { return w.status === 'won'; }).length;
-    var by = {}; A.forEach(function (a) { by[a.dept] = (by[a.dept] || 0) + 1; });
+    var by = {}; A.forEach(function (a) { var k = a.dept || a.type; by[k] = (by[k] || 0) + 1; });
     var depts = Object.keys(by).sort(function (a, b) { return by[b] - by[a]; }), mx = Math.max.apply(null, [1].concat(depts.map(function (d) { return by[d]; })));
     var recent = A.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).slice(0, 8);
     var ck = baseUrl() + '/#checkin', vt = baseUrl() + '/vote/';
     m.innerHTML = head('Tổng quan', 'Số liệu cập nhật trực tiếp khi có người check-in hoặc bình chọn.') +
-      '<div class="kpis">' + [['Đã check-in', A.length, '', '#0089cf'], ['Khối Dự án', proj, A.length ? Math.round(proj / A.length * 100) + '%' : '', '#1849a9'], ['Khối Hội sở', A.length - proj, A.length ? Math.round((A.length - proj) / A.length * 100) + '%' : '', '#ed1c24'],
-        ['Phiếu bình chọn', votes, D.settings.votingOpen ? 'Cổng đang mở' : 'Cổng đang đóng', '#9b51e0'], ['Giải đã trao', won + '/' + prizeTotal, '', '#ffc928']].map(function (k) {
+      '<div class="kpis">' + [['Đã check-in', A.length, '', '#0089cf']].concat(Y.TYPES.map(function (t, i) { var n = A.filter(function (a) { return a.type === t; }).length; return [t, n, A.length ? Math.round(n / A.length * 100) + '%' : '', ['#1849a9', '#ed1c24', '#ff8a3d'][i % 3]]; })).concat([
+        ['Phiếu bình chọn', votes, D.settings.votingOpen ? 'Cổng đang mở' : 'Cổng đang đóng', '#9b51e0'], ['Giải đã trao', won + '/' + prizeTotal, '', '#ffc928']]).map(function (k) {
         return '<div class="kpi" style="--c:' + k[3] + '"><div class="l">' + k[0] + '</div><div class="v">' + esc(k[1]) + '</div><div class="s">' + esc(k[2]) + '</div></div>'; }).join('') + '</div>' +
       '<div class="grid2"><div class="panel"><h2>Theo phòng ban</h2><div class="bars">' + (depts.length ? depts.map(function (d, i) {
         return '<div class="bar-row" style="--c:' + Y.PALETTE[i % Y.PALETTE.length] + '"><span>' + esc(d) + '</span><div class="b"><i style="width:' + (by[d] / mx * 100) + '%"></i></div><span class="n">' + by[d] + '</span></div>'; }).join('') : '<div class="empty">Chưa có ai check-in.</div>') + '</div></div>' +
@@ -99,9 +99,9 @@
   function vCheckins(m, full) {
     if (full || !$('#tbl')) {
       m.innerHTML = head('Danh sách check-in', '', '<button class="btn" id="exp">Xuất Excel (CSV)</button><button class="btn primary" id="addBtn">+ Check-in hộ</button>') +
-        '<div class="filters"><input class="i" id="q" placeholder="Tìm tên, mã, phòng ban, SĐT" value="' + esc(q) + '">' +
-        ['', 'Dự án', 'Hội sở'].map(function (t) { return '<button class="chip' + (typeF === t ? ' on' : '') + '" data-t="' + t + '">' + (t || 'Tất cả') + '</button>'; }).join('') + '<span class="hint" id="cnt"></span></div>' +
-        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Loại hình</th><th>Phòng ban</th><th>Liên hệ</th><th>Check-in</th><th>Bình chọn</th><th>Giải thưởng</th><th></th></tr></thead><tbody id="tbl"></tbody></table></div>';
+        '<div class="filters"><input class="i" id="q" placeholder="Tìm tên, mã, chức vụ, phòng ban" value="' + esc(q) + '">' +
+        [''].concat(Y.TYPES).map(function (t) { return '<button class="chip' + (typeF === t ? ' on' : '') + '" data-t="' + t + '">' + (t || 'Tất cả') + '</button>'; }).join('') + '<span class="hint" id="cnt"></span></div>' +
+        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Chức vụ</th><th>Đơn vị</th><th>Phòng ban</th><th>Check-in</th><th>Bình chọn</th><th>Giải thưởng</th><th></th></tr></thead><tbody id="tbl"></tbody></table></div>';
       $('#q').addEventListener('input', function () { q = this.value; vCheckins(m, false); });
       $$('.filters .chip').forEach(function (b) { b.addEventListener('click', function () { typeF = b.dataset.t; $$('.filters .chip').forEach(function (x) { x.classList.toggle('on', x === b); }); vCheckins(m, false); }); });
       $('#exp').addEventListener('click', function () { location.href = '/admin/api/export.csv'; });
@@ -111,14 +111,14 @@
     var wonBy = {}; D.winners.forEach(function (w) { wonBy[w.attendeeId] = w; });
     var s = q.toLowerCase().trim();
     var rows = D.attendees.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).filter(function (a) {
-      return (!typeF || a.type === typeF) && (!s || [a.code, a.name, a.dept, a.email, a.phone].join(' ').toLowerCase().indexOf(s) >= 0);
+      return (!typeF || a.type === typeF) && (!s || [a.code, a.name, a.title, a.type, a.dept].join(' ').toLowerCase().indexOf(s) >= 0);
     });
     $('#cnt').textContent = rows.length + ' / ' + D.attendees.length + ' người';
     $('#tbl').innerHTML = rows.length ? rows.map(function (a) {
       var p = perfs[a.perf];
       return '<tr><td class="code">' + esc(a.code) + '</td><td><b>' + esc(a.name) + '</b>' + (a.sample ? ' <span class="pill p-dim">mẫu</span>' : '') + '</td>' +
-        '<td><span class="pill ' + (a.type === 'Dự án' ? 'p-proj' : 'p-hq') + '">' + esc(a.type) + '</span></td><td>' + esc(a.dept) + '</td>' +
-        '<td>' + esc(a.phone) + '<span class="s">' + esc(a.email) + '</span></td><td>' + esc(Y.fmtT(a.createdAt)) + '<span class="s">' + (a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in') + ' · mở ' + a.visits + ' lần</span></td>' +
+        '<td>' + esc(a.title || '—') + '</td><td><span class="pill ' + (a.type === 'IPS' ? 'p-proj' : 'p-hq') + '">' + esc(a.type) + '</span></td><td>' + esc(a.dept || '—') + '</td>' +
+        '<td>' + esc(Y.fmtT(a.createdAt)) + '<span class="s">' + (a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in') + ' · mở ' + a.visits + ' lần</span></td>' +
         '<td>' + (p ? '<span class="pill p-ok">' + esc(p.name) + '</span>' : '<span class="pill p-dim">Chưa</span>') + '</td>' +
         '<td>' + (wonBy[a.id] ? (wonBy[a.id].status === 'won' ? '<span class="pill p-warn">' + esc(wonBy[a.id].tierName) + '</span>' : '<span class="pill p-dim">Vắng khi bốc</span>') : '') + '</td>' +
         '<td><button class="x" data-del="' + esc(a.id) + '">Xoá</button></td></tr>';
@@ -136,20 +136,25 @@
     var d = document.createElement('div'); d.className = 'drawer';
     d.innerHTML = '<button class="xx" aria-label="Đóng">×</button><h2>Check-in hộ</h2><p class="hint">Dành cho người không quét được QR. Mã số được cấp ngẫu nhiên như khi tự check-in.</p>' +
       '<label class="f">Họ và tên<input class="i" id="dName"></label>' +
-      '<div class="f"><span style="font-size:13px;font-weight:600;color:var(--mute)">Loại hình</span><div class="seg">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="dType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
-      '<label class="f">Phòng ban<select class="i" id="dDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select></label>' +
-      '<div class="row2"><label class="f">Email<input class="i" id="dEmail" type="email"></label><label class="f">Số điện thoại<input class="i" id="dPhone" type="tel"></label></div>' +
+      '<label class="f">Chức vụ<input class="i" id="dTitle" placeholder="VD: Marketing Manager"></label>' +
+      '<div class="f"><span style="font-size:13px;font-weight:600;color:var(--mute)">Đơn vị</span><div class="seg">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="dType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
+      '<label class="f" id="dDeptRow">Phòng ban<select class="i" id="dDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select></label>' +
       '<div class="err" id="dErr"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" data-close>Đóng</button><button class="btn primary" id="dSave">Check-in &amp; cấp mã</button></div><div id="dOut"></div>';
     document.body.appendChild(bg); document.body.appendChild(d);
     function close() { bg.remove(); d.remove(); }
     bg.addEventListener('click', close); $('.xx', d).addEventListener('click', close); $('[data-close]', d).addEventListener('click', close);
+    var force = false;
+    var syncDept = function () { var t = ($('input[name=dType]:checked', d) || {}).value; $('#dDeptRow', d).hidden = t !== Y.DEPT_TYPE; force = false; };
+    $$('input[name=dType]', d).forEach(function (r) { r.addEventListener('change', syncDept); }); syncDept();
+    ['#dName', '#dTitle'].forEach(function (id) { $(id, d).addEventListener('blur', function () { this.value = Y.titleCase(this.value); }); $(id, d).addEventListener('input', function () { force = false; }); });
     $('#dSave', d).addEventListener('click', function () {
       var b = this; b.disabled = true;
-      api('/admin/api/checkin', { body: { name: $('#dName', d).value, type: ($('input[name=dType]:checked', d) || {}).value, dept: $('#dDept', d).value, email: $('#dEmail', d).value, phone: $('#dPhone', d).value } })
+      var type = ($('input[name=dType]:checked', d) || {}).value;
+      api('/admin/api/checkin', { body: { name: $('#dName', d).value, title: $('#dTitle', d).value, type: type, dept: type === Y.DEPT_TYPE ? $('#dDept', d).value : '', force: force } })
         .then(function (r) {
           $('#dOut', d).innerHTML = '<div class="banner" style="background:var(--ok-bg);color:var(--ok);font-size:16px">Đã check-in <b>' + esc(r.me.name) + '</b> · mã <b style="font-size:22px">' + esc(r.me.code) + '</b></div>';
-          $$('input.i', d).forEach(function (i) { i.value = ''; }); $('#dDept', d).value = ''; $('#dErr', d).textContent = ''; load();
-        }).catch(function (e) { $('#dErr', d).textContent = e.error; }).then(function () { b.disabled = false; });
+          $$('input.i', d).forEach(function (i) { i.value = ''; }); $('#dDept', d).value = ''; $('#dErr', d).textContent = ''; force = false; load();
+        }).catch(function (e) { $('#dErr', d).textContent = e.error; if (e.status === 409) force = true; }).then(function () { b.disabled = false; });
     });
   }
 
@@ -327,11 +332,11 @@
         var any = D.winners.some(function (w) { return w.tier === t.id; });
         return '<div class="kpi" style="--c:' + esc(t.color) + '"><div class="l">' + esc(t.name) + '</div><div class="v">' + n + '/' + esc(t.count) + '</div><div class="s">' + esc(t.item) + '</div>' +
           (any ? '<button class="x" style="margin-top:8px" data-undo-tier="' + esc(t.id) + '">Quay lại giải này</button>' : '') + '</div>'; }).join('') + '</div>' +
-      '<div class="table-wrap"><table><thead><tr><th>Giải</th><th>Mã</th><th>Họ và tên</th><th>Khối · Phòng ban</th><th>Liên hệ</th><th>Giờ bốc</th><th>Trạng thái</th><th></th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table><thead><tr><th>Giải</th><th>Mã</th><th>Họ và tên</th><th>Chức vụ</th><th>Đơn vị · Phòng ban</th><th>Giờ bốc</th><th>Trạng thái</th><th></th></tr></thead><tbody>' +
       (W.length ? W.map(function (w) {
         var a = byId[w.attendeeId] || {};
         return '<tr><td><b>' + esc(w.tierName) + '</b><span class="s">' + esc(w.item) + '</span></td><td class="code">' + esc(w.code) + '</td><td><b>' + esc(w.name) + '</b></td>' +
-          '<td>' + esc(w.type || '') + '<span class="s">' + esc(w.dept || '') + '</span></td><td>' + esc(a.phone || '—') + '<span class="s">' + esc(a.email || '') + '</span></td>' +
+          '<td>' + esc(w.title || a.title || '—') + '</td><td>' + esc(w.type || '') + '<span class="s">' + esc(w.dept || '') + '</span></td>' +
           '<td>' + esc(Y.fmtT(w.at)) + '</td><td>' + stat(w) + '</td>' +
           '<td style="white-space:nowrap">' + (w.status === 'absent' ? '<button class="x" data-st="won" data-id="' + esc(w.id) + '">Đổi thành đã trao</button>' : '<button class="x" data-st="absent" data-id="' + esc(w.id) + '">Đánh vắng mặt</button>') +
           ' <button class="x" data-undo="' + esc(w.id) + '" title="Xoá kết quả này: giải được bốc lại, người này quay về danh sách bốc thăm">Huỷ kết quả</button></td></tr>';

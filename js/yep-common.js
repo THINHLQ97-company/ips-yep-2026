@@ -5,8 +5,13 @@
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var DEPTS = ['Marketing', 'Human Resource', 'Operation', 'DEV', 'IT', 'BOD', 'Kế toán – Tài chính', 'Kinh doanh', 'Hành chính – Pháp chế', 'Kỹ thuật – Bảo trì', 'Chăm sóc khách hàng', 'An ninh – Vệ sinh', 'Khác'];
-  var TYPES = ['Dự án', 'Hội sở'];
+  var DEPTS = ['Ban Giám Đốc', 'Phòng Kế Toán', 'Khối Vận Hành', 'Khối Hỗ Trợ', 'Khối CNTT', 'Phòng Pháp Chế', 'Marketing', 'Khối Kinh Doanh', 'Green View', 'Mỹ Khang', 'Galaxy 9', 'Grand Riverside', 'Garden Plaza', 'Calla Garden', 'La Casa', 'Riverside', 'Lucky Palace', 'Him Lam CL', 'Lavila', 'Saigon Asiana', 'Sunrise Riverside', 'Tresor', 'The Habitat', 'Hưng Phúc'];
+  var TYPES = ['IPS', 'FIFA', 'Sakura'];   // only IPS staff pick a department
+  var DEPT_TYPE = 'IPS';
+  /* "mArketing manager" -> "Marketing Manager" */
+  function titleCase(s) { return String(s || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('vi').replace(/(^|[\s\-\/(])(\p{L})/gu, function (m, a, b) { return a + b.toLocaleUpperCase('vi'); }); }
+  /* where someone belongs: department for IPS, otherwise the unit */
+  function unitOf(a) { return a.dept ? a.type + ' · ' + a.dept : a.type; }
   var PALETTE = ['#ffc928', '#ff4f9a', '#3fe0ff', '#9ff05a', '#ff8a3d', '#a98bff', '#0089cf', '#ed1c24'];
   var ARTS = { phone: 'Điện thoại', tv: 'Tivi', fridge: 'Tủ lạnh', cooker: 'Bếp điện từ', kettle: 'Ấm siêu tốc', powerbank: 'Sạc dự phòng', gift: 'Quà tặng' };
 
@@ -79,5 +84,5 @@
     box.insertAdjacentHTML('beforeend', h);
   }
 
-  window.YEP = { $: $, $$: $$, esc: esc, reduce: reduce, DEPTS: DEPTS, TYPES: TYPES, PALETTE: PALETTE, ARTS: ARTS, fmtT: fmtT, api: api, live: live, toast: toast, art: art, safeImg: safeImg, prizePic: prizePic, qrSvg: qrSvg, tilt: tilt, confetti: confetti };
+  window.YEP = { $: $, $$: $$, esc: esc, reduce: reduce, DEPTS: DEPTS, TYPES: TYPES, DEPT_TYPE: DEPT_TYPE, titleCase: titleCase, unitOf: unitOf, PALETTE: PALETTE, ARTS: ARTS, fmtT: fmtT, api: api, live: live, toast: toast, art: art, safeImg: safeImg, prizePic: prizePic, qrSvg: qrSvg, tilt: tilt, confetti: confetti };
 })();

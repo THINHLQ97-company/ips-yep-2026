@@ -250,7 +250,7 @@
       reveal: function (w, t, actions) {
         var o = document.createElement('div'); o.className = 'reveal';
         o.innerHTML = '<div class="rv-card"><div class="t">' + esc(t.name) + ' thuộc về mã số</div><div class="n">' + esc(w.code) + '</div>' +
-          '<div class="p">' + esc(w.name) + '</div><div class="d">' + esc(w.type) + ' · ' + esc(w.dept) + '</div>' +
+          '<div class="p">' + esc(w.name) + '</div><div class="d">' + (w.title ? esc(w.title) + ' · ' : '') + esc(Y.unitOf(w)) + '</div>' +
           '<div class="pr"><div class="pc">' + Y.prizePic(t) + '</div>' + esc(t.item) + '</div>' +
           (actions ? '<div class="acts"><button type="button" data-a="ok">Trao giải</button><button type="button" class="ghost" data-a="absent">Vắng mặt, bốc lại</button></div>' : '') + '</div>';
         stage.appendChild(o); Y.confetti(o, 90); SFX.applause();

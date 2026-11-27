@@ -128,6 +128,9 @@ h2.gt { font-family: var(--f-t); font-size: 50px; line-height: 62px; text-transf
 .formrow select option { color: #091638; }
 .formrow .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.seg.seg3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.seg.seg3 label { justify-content: center; padding: 14px 10px; }
+.formrow[hidden] { display: none !important; }
 .seg label { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 10px; cursor: pointer; background: rgba(255,255,255,.08); box-shadow: var(--glass-shadow); font-weight: 600; }
 .seg input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0; padding: 0; border-radius: 50%; border: 2px solid rgba(255,255,255,.7); background: transparent; flex: none; }
 .seg input:checked { border: 6px solid var(--gold); }

@@ -47,9 +47,9 @@ Lần đầu chạy với PostgreSQL, nếu còn file `data/db.json` cũ thì d�
 
 ## Luồng sự kiện
 
-1. **Check-in**: quét QR tại bàn đăng ký → điền Họ tên, Loại hình (Dự án / Hội sở), Phòng ban, Email, SĐT → nhận mã số ngẫu nhiên 001–999 (không trùng).
-   Trình duyệt được ghi nhớ 30 ngày; mở lại trang là thấy vé, mã số, lịch sử các lần truy cập. Đổi máy: "Đã check-in trên máy khác?" → nhập SĐT + email.
-   Mỗi số điện thoại chỉ check-in một lần. BTC có thể check-in hộ trong dashboard.
+1. **Check-in**: quét QR tại bàn đăng ký → điền Họ tên, Chức vụ (tự viết hoa chữ cái đầu), Đơn vị (IPS / FIFA / Sakura), Phòng ban (chỉ khi chọn IPS) → nhận mã số ngẫu nhiên 001–999 (không trùng).
+   Trình duyệt được ghi nhớ 30 ngày; mở lại trang là thấy vé, mã số, lịch sử các lần truy cập. Đổi máy: "Đã check-in trên máy khác?" → nhập họ tên + mã số (quên mã thì BTC tra trong dashboard).
+   Mỗi họ tên chỉ check-in một lần trong cùng đơn vị và phòng ban (trùng tên thật: BTC check-in hộ). BTC có thể check-in hộ trong dashboard.
 2. **Bình chọn**: BTC bật "Cổng bình chọn" trong dashboard. Người đã check-in chọn 1 tiết mục (đổi ý được khi cổng còn mở).
    `/screen/` hiển thị mỗi tiết mục là một tòa nhà 3D, **mỗi 10 phiếu thêm một tầng** (chỉnh ở tab Bình chọn); tòa cao nhất được thắp biểu tượng IPS.
 3. **Bốc thăm** (tab Bốc thăm, phím F toàn màn hình), **2 lần bấm** (Space, nút hoặc bấm vào sân khấu):

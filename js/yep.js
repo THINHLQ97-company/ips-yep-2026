@@ -97,13 +97,13 @@
     ckMode = mode;
     if (mode === 'load') { box.innerHTML = '<p class="lead">Đang kiểm tra thông tin check-in…</p>'; return; }
     if (mode === 'recover') {
-      box.innerHTML = '<h3>Tìm lại vé của bạn</h3><p class="lead">Đã check-in trên máy khác? Nhập đúng số điện thoại và email đã dùng.</p>' +
-        '<form id="rcF" novalidate><div class="formrow"><label class="label" for="rcPhone">Số điện thoại</label><input id="rcPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx"></div>' +
-        '<div class="formrow"><label class="label" for="rcEmail">Email</label><input id="rcEmail" type="email" inputmode="email" autocomplete="email" placeholder="ten@ipscorp.vn"></div>' +
+      box.innerHTML = '<h3>Tìm lại vé của bạn</h3><p class="lead">Đã check-in trên máy khác? Nhập họ tên và mã số may mắn của bạn. Quên mã? Hỏi bàn BTC để tra giúp.</p>' +
+        '<form id="rcF" novalidate><div class="formrow"><label class="label" for="rcName">Họ và tên</label><input id="rcName" autocomplete="name" placeholder="Nguyễn Văn A"></div>' +
+        '<div class="formrow"><label class="label" for="rcCode">Mã số may mắn</label><input id="rcCode" inputmode="numeric" maxlength="3" placeholder="VD: 042"></div>' +
         '<p class="form-err" id="rcErr"></p><div class="actions"><button type="button" class="linkbtn" data-mode="form">Quay lại check-in</button><button class="cta" type="submit">Tìm vé</button></div></form>';
       $('#rcF').addEventListener('submit', function (e) {
         e.preventDefault(); var b = this.querySelector('[type=submit]'); b.disabled = true;
-        Y.api('/api/recover', { body: { phone: $('#rcPhone').value, email: $('#rcEmail').value } })
+        Y.api('/api/recover', { body: { name: $('#rcName').value, code: $('#rcCode').value } })
           .then(function () { return loadMe(); }).then(function () { Y.toast('Đã tìm thấy vé của bạn'); })
           .catch(function (er) { $('#rcErr').textContent = er.error; b.disabled = false; });
       });
@@ -111,14 +111,18 @@
       box.innerHTML = '<h3>Thông tin của bạn</h3><p class="lead">Điền thông tin để nhận <b style="color:var(--gold)">mã số may mắn</b> cho vòng bốc thăm.</p>' +
         '<form id="ckF" novalidate autocomplete="on">' +
         '<div class="formrow"><label class="label" for="ckName">Họ và tên <em>*</em></label><input id="ckName" autocomplete="name" placeholder="Nguyễn Văn A"></div>' +
-        '<div class="formrow"><span class="label">Loại hình <em>*</em></span><div class="seg">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="ckType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
-        '<div class="formrow"><label class="label" for="ckDept">Phòng ban <em>*</em></label><select id="ckDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></div>' +
-        '<div class="formrow"><div class="two"><div><label class="label" for="ckEmail">Email <em>*</em></label><input id="ckEmail" type="email" inputmode="email" autocomplete="email" placeholder="ten@ipscorp.vn"></div>' +
-        '<div><label class="label" for="ckPhone">Số điện thoại <em>*</em></label><input id="ckPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09xx xxx xxx"></div></div></div>' +
+        '<div class="formrow"><label class="label" for="ckTitle">Chức vụ <em>*</em></label><input id="ckTitle" autocomplete="organization-title" placeholder="VD: Marketing Manager"></div>' +
+        '<div class="formrow"><span class="label">Đơn vị <em>*</em></span><div class="seg seg3">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="ckType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
+        '<div class="formrow" id="ckDeptRow"><label class="label" for="ckDept">Phòng ban <em>*</em></label><select id="ckDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></div>' +
         '<input type="text" name="website" id="ckWeb" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">' +
         '<p class="form-err" id="ckErr"></p>' +
         '<div class="actions"><button type="button" class="linkbtn" data-mode="recover">Đã check-in trên máy khác?</button><button class="cta" type="submit">Check-in &amp; nhận mã số</button></div></form>';
       $('#ckF').addEventListener('submit', submitCheckin);
+      // only IPS picks a department
+      var syncDept = function () { var t = ($('input[name=ckType]:checked') || {}).value; $('#ckDeptRow').hidden = t !== Y.DEPT_TYPE; };
+      $$('input[name=ckType]').forEach(function (r) { r.addEventListener('change', syncDept); }); syncDept();
+      // tidy capitalisation as soon as a field is left
+      ['#ckName', '#ckTitle'].forEach(function (id) { $(id).addEventListener('blur', function () { this.value = Y.titleCase(this.value); }); });
     }
     $$('[data-mode]', box).forEach(function (b) { b.addEventListener('click', function () { want = b.dataset.mode; renderCheckin(); }); });
   }
@@ -126,11 +130,12 @@
   function submitCheckin(e) {
     e.preventDefault();
     var f = this, b = f.querySelector('[type=submit]'), out = $('#ckErr');
-    var v = { name: $('#ckName').value, type: (f.querySelector('input[name=ckType]:checked') || {}).value, dept: $('#ckDept').value, email: $('#ckEmail').value, phone: $('#ckPhone').value, website: $('#ckWeb').value };
-    if (v.name.trim().length < 2) return (out.textContent = 'Vui lòng nhập họ và tên.');
-    if (!v.dept) return (out.textContent = 'Vui lòng chọn phòng ban.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) return (out.textContent = 'Email chưa đúng định dạng.');
-    if (v.phone.replace(/\D/g, '').length < 9) return (out.textContent = 'Số điện thoại chưa đúng.');
+    var type = (f.querySelector('input[name=ckType]:checked') || {}).value;
+    var v = { name: Y.titleCase($('#ckName').value), title: Y.titleCase($('#ckTitle').value), type: type, dept: type === Y.DEPT_TYPE ? $('#ckDept').value : '', website: $('#ckWeb').value };
+    $('#ckName').value = v.name; $('#ckTitle').value = v.title;
+    if (v.name.length < 2) return (out.textContent = 'Vui lòng nhập họ và tên.');
+    if (v.title.length < 2) return (out.textContent = 'Vui lòng nhập chức vụ.');
+    if (type === Y.DEPT_TYPE && !v.dept) return (out.textContent = 'Vui lòng chọn phòng ban.');
     out.textContent = ''; b.disabled = true; b.textContent = 'Đang cấp mã…';
     Y.api('/api/checkin', { body: v }).then(function (d) {
       Y.toast(d.existing ? 'Bạn đã check-in trước đó · mã ' + d.me.code : 'Check-in thành công! Mã của bạn: ' + d.me.code);
@@ -144,7 +149,7 @@
     return '<div class="ticket-scene"><div class="ticket tilt">' +
       '<div class="layer" style="transform:translateZ(-8px)"></div><div class="layer" style="transform:translateZ(-16px);background:#0a1f55"></div><div class="layer" style="transform:translateZ(-24px);background:#071840"></div>' +
       '<div class="face"><div class="lbl">Mã số may mắn của bạn</div><div class="num">' + esc(me.code) + '</div>' +
-      '<div class="who">' + esc(me.name) + '</div><div class="meta">' + esc(me.type) + ' · ' + esc(me.dept) + '</div>' +
+      '<div class="who">' + esc(me.name) + '</div><div class="meta">' + (me.title ? esc(me.title) + ' · ' : '') + esc(Y.unitOf(me)) + '</div>' +
       '<div class="cut"></div><div class="row"><span class="pill"><i></i>Check-in ' + esc(Y.fmtT(me.createdAt)) + '</span>' +
       (perf ? '<span class="pill" style="--c:' + esc(perf.color) + '"><i></i>Đã bình chọn: ' + esc(perf.name) + '</span>' : '') + '</div>' +
       wins.map(function (w) { return '<div class="won">Chúc mừng! Bạn trúng ' + esc(w.tierName) + ': ' + esc(w.item) + '. Mời bạn lên sân khấu nhận quà.</div>'; }).join('') +

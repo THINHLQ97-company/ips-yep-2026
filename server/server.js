@@ -33,8 +33,9 @@ const store = createStore(env, DATA_DIR);
 const db = store.db;
 let SESSION_SECRET = '';   // set in start(), once the store has loaded
 
-const DEPTS = ['Marketing', 'Human Resource', 'Operation', 'DEV', 'IT', 'BOD', 'Kế toán – Tài chính', 'Kinh doanh', 'Hành chính – Pháp chế', 'Kỹ thuật – Bảo trì', 'Chăm sóc khách hàng', 'An ninh – Vệ sinh', 'Khác'];
-const TYPES = ['Dự án', 'Hội sở'];
+const DEPTS = ['Ban Giám Đốc', 'Phòng Kế Toán', 'Khối Vận Hành', 'Khối Hỗ Trợ', 'Khối CNTT', 'Phòng Pháp Chế', 'Marketing', 'Khối Kinh Doanh', 'Green View', 'Mỹ Khang', 'Galaxy 9', 'Grand Riverside', 'Garden Plaza', 'Calla Garden', 'La Casa', 'Riverside', 'Lucky Palace', 'Him Lam CL', 'Lavila', 'Saigon Asiana', 'Sunrise Riverside', 'Tresor', 'The Habitat', 'Hưng Phúc'];
+const TYPES = ['IPS', 'FIFA', 'Sakura'];   // only IPS staff pick a department
+const DEPT_TYPE = 'IPS';
 
 /* ── helpers ── */
 const now = () => Date.now();
@@ -46,14 +47,16 @@ const isColor = (c) => /^#[0-9a-f]{6}$/i.test(String(c || ''));
 const baseOf = (u) => { try { const x = new URL(u); return (x.origin + x.pathname).replace(/\/+$/, ''); } catch (e) { return String(u || '').split('#')[0].replace(/\/+$/, ''); } };
 const isUpload = (u) => /^\/uploads\/[\w.-]+$/.test(String(u || ''));
 
+// "mArketing manager" -> "Marketing Manager": first letter of every word upper case, the rest lower case
+const titleCase = (s) => str(s, 80).normalize('NFC').toLocaleLowerCase('vi').replace(/(^|[\s\-\/(])(\p{L})/gu, (m, sep, ch) => sep + ch.toLocaleUpperCase('vi'));
+const nameKey = (a) => titleCase(a.name) + '|' + (a.type || '') + '|' + (a.dept || '');
 function validate(b) {
-  const v = { name: str(b.name, 80), type: str(b.type, 20), dept: str(b.dept, 60), email: str(b.email, 120).toLowerCase(), phone: str(b.phone, 20) };
+  const v = { name: titleCase(b.name), title: titleCase(b.title), type: str(b.type, 20), dept: str(b.dept, 60) };
   if (v.name.length < 2) return [null, 'Vui lòng nhập họ và tên.'];
-  if (!TYPES.includes(v.type)) return [null, 'Vui lòng chọn loại hình.'];
-  if (!DEPTS.includes(v.dept)) return [null, 'Vui lòng chọn phòng ban.'];
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email)) return [null, 'Email chưa đúng định dạng.'];
-  v.phoneNorm = normPhone(v.phone);
-  if (v.phoneNorm.length < 9 || v.phoneNorm.length > 12) return [null, 'Số điện thoại chưa đúng.'];
+  if (v.title.length < 2) return [null, 'Vui lòng nhập chức vụ.'];
+  if (!TYPES.includes(v.type)) return [null, 'Vui lòng chọn đơn vị.'];
+  if (v.type === DEPT_TYPE) { if (!DEPTS.includes(v.dept)) return [null, 'Vui lòng chọn phòng ban.']; }
+  else v.dept = '';   // FIFA, Sakura: no department
   return [v, ''];
 }
 function freeCode() {
@@ -65,12 +68,12 @@ function freeCode() {
 }
 function createAttendee(v, source, sample) {
   const t = now();
-  const a = { id: token(9), token: token(24), code: freeCode(), name: v.name, type: v.type, dept: v.dept, email: v.email, phone: v.phone, phoneNorm: v.phoneNorm,
+  const a = { id: token(9), token: token(24), code: freeCode(), name: v.name, title: v.title, type: v.type, dept: v.dept,
     source, sample: !!sample, createdAt: t, lastSeen: t, visits: [t] };
   db.attendees.push(a);
   return a;
 }
-const pub = (a) => a && { id: a.id, code: a.code, name: a.name, type: a.type, dept: a.dept, createdAt: a.createdAt };
+const pub = (a) => a && { id: a.id, code: a.code, name: a.name, title: a.title || '', type: a.type, dept: a.dept, createdAt: a.createdAt };
 const revealed = () => db.winners.filter((w) => w.revealed || w.at <= now() - REVEAL_FALLBACK_MS);
 
 function publicStatus() {
@@ -103,7 +106,7 @@ setInterval(() => { for (const c of clients) c.res.write(': ping\n\n'); }, 25e3)
 
 /* ── rate limiting (in memory) ──
    Limits are per IP and generous on purpose: at the party the whole hall shares one Wi-Fi, so hundreds of phones
-   arrive from the same public IP. Duplicates are already stopped by phone number and one vote per guest. */
+   arrive from the same public IP. Duplicates are stopped by name + unit + department and one vote per guest. */
 const buckets = new Map();
 function limited(key, max, windowMs) {
   const t = now(), b = (buckets.get(key) || []).filter((x) => t - x < windowMs);
@@ -174,7 +177,7 @@ async function api(req, res, url) {
     if (t - (a.lastSeen || 0) > 10 * 60e3) { a.lastSeen = t; a.visits.push(t); if (a.visits.length > 50) a.visits.shift(); store.save(); }
     const vote = db.votes[a.id] || null;
     const wins = revealed().filter((w) => w.attendeeId === a.id && w.status === 'won').map((w) => ({ tierName: w.tierName, item: w.item, at: w.at }));
-    return send(res, 200, { me: Object.assign(pub(a), { email: a.email, phone: a.phone, visits: a.visits.length, history: a.visits.slice(-6).reverse() }), vote, wins });
+    return send(res, 200, { me: Object.assign(pub(a), { visits: a.visits.length, history: a.visits.slice(-6).reverse() }), vote, wins });
   }
   if (p === '/api/checkin' && req.method === 'POST') {
     if (limited('checkin:' + ip, 600, 600e3)) return send(res, 429, { error: 'Thao tác quá nhanh, vui lòng thử lại sau ít phút hoặc liên hệ bàn BTC.' });
@@ -184,11 +187,8 @@ async function api(req, res, url) {
     if (cur) return send(res, 200, { me: pub(cur), existing: true });
     const [v, err] = validate(b);
     if (!v) return send(res, 400, { error: err });
-    const dup = db.attendees.find((a) => a.phoneNorm === v.phoneNorm);
-    if (dup) {
-      if (dup.email === v.email) return send(res, 200, { me: pub(dup), existing: true }, { 'Set-Cookie': setCookie('yep_t', dup.token, 30) });
-      return send(res, 409, { error: 'Số điện thoại này đã check-in với email khác. Vui lòng liên hệ bàn BTC.' });
-    }
+    const dup = db.attendees.find((a) => nameKey(a) === nameKey(v));
+    if (dup) return send(res, 409, { error: 'Họ tên này đã check-in ' + (v.dept ? 'ở phòng ban ' + v.dept : 'ở đơn vị ' + v.type) + '. Nếu là bạn, bấm "Đã check-in trên máy khác?" để lấy lại vé. Nếu trùng tên đồng nghiệp, vui lòng liên hệ bàn BTC.' });
     const a = createAttendee(v, 'self');
     store.audit('check-in', a.name, a.code);
     changed(true);
@@ -197,9 +197,10 @@ async function api(req, res, url) {
   if (p === '/api/recover' && req.method === 'POST') {
     if (limited('recover:' + ip, 120, 600e3)) return send(res, 429, { error: 'Thử quá nhiều lần, vui lòng đợi ít phút.' });
     const b = await readJson(req);
-    const pn = normPhone(b.phone), em = str(b.email, 120).toLowerCase();
-    const a = pn && em ? db.attendees.find((x) => x.phoneNorm === pn && x.email === em) : null;
-    if (!a) return send(res, 404, { error: 'Không tìm thấy. Kiểm tra lại số điện thoại và email đã dùng khi check-in.' });
+    // a lost ticket comes back with the guest's name + lucky number (the BTC can look the number up in the dashboard)
+    const nm = titleCase(b.name), code = String(b.code || '').replace(/\D/g, '').padStart(3, '0');
+    const a = nm && code !== '000' ? db.attendees.find((x) => x.code === code && titleCase(x.name) === nm) : null;
+    if (!a) return send(res, 404, { error: 'Không tìm thấy. Kiểm tra lại họ tên và mã số may mắn, hoặc hỏi bàn BTC để tra mã.' });
     return send(res, 200, { me: pub(a) }, { 'Set-Cookie': setCookie('yep_t', a.token, 30) });
   }
   if (p === '/api/vote' && req.method === 'POST') {
@@ -224,7 +225,7 @@ const FN = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Võ', 'Đặng', '
 function adminData() {
   return {
     settings: db.settings, defaultUrl: BASE_URL,
-    attendees: db.attendees.map((a) => ({ id: a.id, code: a.code, name: a.name, type: a.type, dept: a.dept, email: a.email, phone: a.phone, source: a.source, sample: a.sample,
+    attendees: db.attendees.map((a) => ({ id: a.id, code: a.code, name: a.name, title: a.title || '', type: a.type, dept: a.dept || '', source: a.source, sample: a.sample,
       createdAt: a.createdAt, lastSeen: a.lastSeen, visits: a.visits.length, perf: (db.votes[a.id] || {}).perf || '', votedAt: (db.votes[a.id] || {}).at || 0 })),
     winners: db.winners, audit: db.audit.slice(0, 100)
   };
@@ -232,8 +233,8 @@ function adminData() {
 function csv() {
   const perfs = Object.fromEntries(db.settings.performances.map((p) => [p.id, p.name]));
   const q = (s) => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
-  const head = ['Mã', 'Họ và tên', 'Loại hình', 'Phòng ban', 'Email', 'SĐT', 'Nguồn', 'Giờ check-in', 'Số lần mở trang', 'Bình chọn', 'Giải thưởng'];
-  const rows = [...db.attendees].sort((a, b) => a.code.localeCompare(b.code)).map((a) => [a.code, a.name, a.type, a.dept, a.email, a.phone, a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in',
+  const head = ['Mã', 'Họ và tên', 'Chức vụ', 'Đơn vị', 'Phòng ban', 'Nguồn', 'Giờ check-in', 'Số lần mở trang', 'Bình chọn', 'Giải thưởng'];
+  const rows = [...db.attendees].sort((a, b) => a.code.localeCompare(b.code)).map((a) => [a.code, a.name, a.title || '', a.type, a.dept || '', a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in',
     new Date(a.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), a.visits.length, perfs[(db.votes[a.id] || {}).perf] || '',
     db.winners.filter((w) => w.attendeeId === a.id && w.status === 'won').map((w) => w.tierName + ' – ' + w.item).join('; ')].map(q).join(','));
   return '﻿' + [head.map(q).join(','), ...rows].join('\r\n');
@@ -264,10 +265,11 @@ async function admin(req, res, url) {
   if (p === '/admin/api/export.csv' && req.method === 'GET') return send(res, 200, csv(), { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="ips-yep-2026-checkin.csv"' });
 
   if (p === '/admin/api/checkin' && req.method === 'POST') {
-    const [v, err] = validate(await readJson(req));
+    const body = await readJson(req);
+    const [v, err] = validate(body);
     if (!v) return send(res, 400, { error: err });
-    const dup = db.attendees.find((a) => a.phoneNorm === v.phoneNorm);
-    if (dup) return send(res, 409, { error: `SĐT đã check-in: ${dup.name} · mã ${dup.code}` });
+    const dup = db.attendees.find((a) => nameKey(a) === nameKey(v));
+    if (dup && !body.force) return send(res, 409, { error: `Đã có ${dup.name} (${dup.dept || dup.type}) check-in, mã ${dup.code}. Bấm lại để vẫn check-in nếu là người khác trùng tên.`, dup: true });
     const a = createAttendee(v, 'btc');
     store.audit('BTC check-in hộ', 'BTC', a.code + ' ' + a.name);
     changed(true);
@@ -319,7 +321,7 @@ async function admin(req, res, url) {
     for (let i = others.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [others[i], others[j]] = [others[j], others[i]]; }
     const field = [w, ...others.slice(0, 7)].map((a) => a.code);
     for (let i = field.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [field[i], field[j]] = [field[j], field[i]]; }
-    const row = { id: token(9), attendeeId: w.id, code: w.code, name: w.name, dept: w.dept, type: w.type, tier: tier.id, tierName: tier.name, item: tier.item, at: now(), status: 'won' };
+    const row = { id: token(9), attendeeId: w.id, code: w.code, name: w.name, title: w.title || '', dept: w.dept || '', type: w.type, tier: tier.id, tierName: tier.name, item: tier.item, at: now(), status: 'won' };
     db.winners.push(row);
     store.audit('bốc thăm', 'BTC', `${tier.name}: ${w.code} ${w.name} (trong ${pool.length} người)`);
     changed(true);
@@ -378,11 +380,12 @@ async function admin(req, res, url) {
     }
     const perfs = db.settings.performances;
     let n = 0;
-    for (let i = 0; i < 30; i++) {
-      const phone = '0900000' + pad3(i);
-      if (db.attendees.some((a) => a.phoneNorm === phone)) continue;
-      const a = createAttendee({ name: `${FN[crypto.randomInt(10)]} ${MN[crypto.randomInt(8)]} ${LN[crypto.randomInt(16)]}`, type: TYPES[crypto.randomInt(2)], dept: DEPTS[crypto.randomInt(8)],
-        email: `khachmau${i}@example.com`, phone, phoneNorm: phone }, 'btc', true);
+    const TITLES = ['Nhân Viên', 'Chuyên Viên', 'Trưởng Nhóm', 'Trưởng Phòng', 'Quản Lý Dự Án', 'Kỹ Thuật Viên'];
+    for (let i = db.attendees.filter((a) => a.sample).length; i < 30; i++) {
+      const type = crypto.randomInt(5) ? 'IPS' : TYPES[1 + crypto.randomInt(2)];
+      const v = { name: `${FN[crypto.randomInt(10)]} ${MN[crypto.randomInt(8)]} ${LN[crypto.randomInt(16)]}`, title: TITLES[crypto.randomInt(TITLES.length)], type, dept: type === 'IPS' ? DEPTS[crypto.randomInt(DEPTS.length)] : '' };
+      if (db.attendees.some((a) => nameKey(a) === nameKey(v))) continue;
+      const a = createAttendee(v, 'btc', true);
       if (perfs.length && crypto.randomInt(3)) db.votes[a.id] = { perf: perfs[crypto.randomInt(perfs.length)].id, at: now() };
       n++;
     }
