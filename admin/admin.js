@@ -65,7 +65,7 @@
       '<div class="kpis">' + [['Đã check-in', A.length, '', '#0089cf']].concat(Y.TYPES.map(function (t, i) { var n = A.filter(function (a) { return a.type === t; }).length; return [t, n, A.length ? Math.round(n / A.length * 100) + '%' : '', ['#1849a9', '#ed1c24', '#ff8a3d'][i % 3]]; })).concat([
         ['Phiếu bình chọn', votes, D.settings.votingOpen ? 'Cổng đang mở' : 'Cổng đang đóng', '#9b51e0'], ['Giải đã trao', won + '/' + prizeTotal, '', '#ffc928']]).map(function (k) {
         return '<div class="kpi" style="--c:' + k[3] + '"><div class="l">' + k[0] + '</div><div class="v">' + esc(k[1]) + '</div><div class="s">' + esc(k[2]) + '</div></div>'; }).join('') + '</div>' +
-      '<div class="grid2"><div class="panel"><h2>Theo phòng ban</h2><div class="bars">' + (depts.length ? depts.map(function (d, i) {
+      '<div class="grid2"><div class="panel"><h2>Theo khối/phòng ban/dự án</h2><div class="bars">' + (depts.length ? depts.map(function (d, i) {
         return '<div class="bar-row" style="--c:' + Y.PALETTE[i % Y.PALETTE.length] + '"><span>' + esc(d) + '</span><div class="b"><i style="width:' + (by[d] / mx * 100) + '%"></i></div><span class="n">' + by[d] + '</span></div>'; }).join('') : '<div class="empty">Chưa có ai check-in.</div>') + '</div></div>' +
       '<div class="panel"><div class="qr-tabs" role="tablist"><button type="button" role="tab" data-qr="ck" class="' + (qrTab === 'ck' ? 'on' : '') + '">Mã QR Check-in</button><button type="button" role="tab" data-qr="vt" class="' + (qrTab === 'vt' ? 'on' : '') + '">Mã QR Bình chọn</button></div>' +
       [['ck', ck, 'Quét để check-in', 'In và đặt tại bàn đăng ký.', 'ips-yep-qr-checkin.png'], ['vt', vt, 'Quét để bình chọn', 'Chiếu lên màn hình hoặc in khi MC mời khán giả bình chọn. Trang chỉ nhận phiếu khi cổng bình chọn đang mở.', 'ips-yep-qr-binh-chon.png']].map(function (q) {
@@ -99,9 +99,9 @@
   function vCheckins(m, full) {
     if (full || !$('#tbl')) {
       m.innerHTML = head('Danh sách check-in', '', '<button class="btn" id="exp">Xuất Excel (CSV)</button><button class="btn primary" id="addBtn">+ Check-in hộ</button>') +
-        '<div class="filters"><input class="i" id="q" placeholder="Tìm tên, mã, SĐT, chức vụ, phòng ban" value="' + esc(q) + '">' +
+        '<div class="filters"><input class="i" id="q" placeholder="Tìm tên, mã, SĐT, chức vụ, khối/phòng ban/dự án" value="' + esc(q) + '">' +
         [''].concat(Y.TYPES).map(function (t) { return '<button class="chip' + (typeF === t ? ' on' : '') + '" data-t="' + t + '">' + (t || 'Tất cả') + '</button>'; }).join('') + '<span class="hint" id="cnt"></span></div>' +
-        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Số điện thoại</th><th>Chức vụ</th><th>Đơn vị</th><th>Phòng ban</th><th>Check-in</th><th>Bình chọn</th><th>Giải thưởng</th><th></th></tr></thead><tbody id="tbl"></tbody></table></div>';
+        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Số điện thoại</th><th>Chức vụ</th><th>Đơn vị</th><th>Khối/Phòng ban/Dự án</th><th>Check-in</th><th>Bình chọn</th><th>Giải thưởng</th><th></th></tr></thead><tbody id="tbl"></tbody></table></div>';
       $('#q').addEventListener('input', function () { q = this.value; vCheckins(m, false); });
       $$('.filters .chip').forEach(function (b) { b.addEventListener('click', function () { typeF = b.dataset.t; $$('.filters .chip').forEach(function (x) { x.classList.toggle('on', x === b); }); vCheckins(m, false); }); });
       $('#exp').addEventListener('click', function () { location.href = '/admin/api/export.csv'; });
@@ -140,7 +140,7 @@
       '<label class="f">Số điện thoại<input class="i" id="dPhone" type="tel" inputmode="numeric" maxlength="16" placeholder="0912 345 678"></label>' +
       '<label class="f">Chức vụ<input class="i" id="dTitle" placeholder="VD: Marketing Manager"></label>' +
       '<div class="f"><span style="font-size:13px;font-weight:600;color:var(--mute)">Đơn vị</span><div class="seg">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="dType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
-      '<label class="f" id="dDeptRow">Phòng ban<select class="i" id="dDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select></label>' +
+      '<label class="f" id="dDeptRow">Khối/Phòng ban/Dự án<select class="i" id="dDept"><option value="">Chọn khối/phòng ban/dự án</option>' + Y.DEPTS.map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select></label>' +
       '<div class="err" id="dErr"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" data-close>Đóng</button><button class="btn primary" id="dSave">Check-in &amp; cấp mã</button></div><div id="dOut"></div>';
     document.body.appendChild(bg); document.body.appendChild(d);
     function close() { bg.remove(); d.remove(); }
@@ -174,8 +174,8 @@
       $('#vpf').addEventListener('change', function () { api('/admin/api/settings', { body: { votesPerFloor: this.value } }).then(function () { toast('Đã lưu: ' + $('#vpf').value + ' phiếu = 1 tầng'); load(); }).catch(fail); });
       $('#vt').addEventListener('click', function () { api('/admin/api/settings', { body: { votingOpen: !s.votingOpen } }).then(function () { toast(s.votingOpen ? 'Đã đóng bình chọn' : 'Đã mở bình chọn'); load(); }).catch(fail); });
       m.insertAdjacentHTML('beforeend', '<div class="panel"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Ai đã bình chọn cho đội nào</h2>' +
-        '<input class="i" id="vq" placeholder="Tìm tên, mã, phòng ban" style="max-width:260px;margin-left:auto"><select class="i" id="vf" style="max-width:220px"><option value="">Tất cả tiết mục</option></select></div>' +
-        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Khối · Phòng ban</th><th>Bình chọn cho</th><th>Thời điểm</th></tr></thead><tbody id="vtbl"></tbody></table></div><p class="hint" id="vcnt" style="margin-top:8px"></p></div>');
+        '<input class="i" id="vq" placeholder="Tìm tên, mã, khối/phòng ban/dự án" style="max-width:260px;margin-left:auto"><select class="i" id="vf" style="max-width:220px"><option value="">Tất cả tiết mục</option></select></div>' +
+        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Đơn vị · Khối/Phòng ban/Dự án</th><th>Bình chọn cho</th><th>Thời điểm</th></tr></thead><tbody id="vtbl"></tbody></table></div><p class="hint" id="vcnt" style="margin-top:8px"></p></div>');
       $('#vq').addEventListener('input', drawVoters); $('#vf').addEventListener('change', drawVoters);
       edP = JSON.parse(JSON.stringify(P)); drawPerf();
       $('#padd').addEventListener('click', function () { if (edP.length >= 8) return; edP.push({ id: 'p' + Date.now().toString(36), name: 'Tiết mục ' + (edP.length + 1), team: '', color: Y.PALETTE[edP.length % 6] }); dirty.perf = 1; drawPerf(); });
@@ -335,7 +335,7 @@
         var any = D.winners.some(function (w) { return w.tier === t.id; });
         return '<div class="kpi" style="--c:' + esc(t.color) + '"><div class="l">' + esc(t.name) + '</div><div class="v">' + n + '/' + esc(t.count) + '</div><div class="s">' + esc(t.item) + '</div>' +
           (any ? '<button class="x" style="margin-top:8px" data-undo-tier="' + esc(t.id) + '">Quay lại giải này</button>' : '') + '</div>'; }).join('') + '</div>' +
-      '<div class="table-wrap"><table><thead><tr><th>Giải</th><th>Mã</th><th>Họ và tên</th><th>Chức vụ</th><th>Đơn vị · Phòng ban</th><th>Giờ bốc</th><th>Trạng thái</th><th></th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table><thead><tr><th>Giải</th><th>Mã</th><th>Họ và tên</th><th>Chức vụ</th><th>Đơn vị · Khối/Phòng ban/Dự án</th><th>Giờ bốc</th><th>Trạng thái</th><th></th></tr></thead><tbody>' +
       (W.length ? W.map(function (w) {
         var a = byId[w.attendeeId] || {};
         return '<tr><td><b>' + esc(w.tierName) + '</b><span class="s">' + esc(w.item) + '</span></td><td class="code">' + esc(w.code) + '</td><td><b>' + esc(w.name) + '</b></td>' +

@@ -114,7 +114,7 @@
         '<div class="formrow"><label class="label" for="ckPhone">Số điện thoại <em>*</em></label><input id="ckPhone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="16" placeholder="0912 345 678"></div>' +
         '<div class="formrow"><label class="label" for="ckTitle">Chức vụ <em>*</em></label><input id="ckTitle" autocomplete="organization-title" placeholder="VD: Marketing Manager"></div>' +
         '<div class="formrow"><span class="label">Đơn vị <em>*</em></span><div class="seg seg3">' + Y.TYPES.map(function (t, i) { return '<label><input type="radio" name="ckType" value="' + t + '"' + (i ? '' : ' checked') + '>' + t + '</label>'; }).join('') + '</div></div>' +
-        '<div class="formrow" id="ckDeptRow"><label class="label" for="ckDept">Phòng ban <em>*</em></label><select id="ckDept"><option value="">Chọn phòng ban</option>' + Y.DEPTS.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></div>' +
+        '<div class="formrow" id="ckDeptRow"><label class="label" for="ckDept">Khối/Phòng ban/Dự án <em>*</em></label><select id="ckDept"><option value="">Chọn khối/phòng ban/dự án</option>' + Y.DEPTS.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></div>' +
         '<input type="text" name="website" id="ckWeb" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">' +
         '<p class="form-err" id="ckErr"></p>' +
         '<div class="actions"><button type="button" class="linkbtn" data-mode="recover">Đã check-in trên máy khác?</button><button class="cta" type="submit">Check-in &amp; nhận mã số</button></div></form>';
@@ -139,7 +139,7 @@
     if (!v.phone) return (out.textContent = 'Vui lòng nhập số điện thoại.');
     if (!Y.isPhone(v.phone)) return (out.textContent = 'Số điện thoại không hợp lệ. Vui lòng nhập số di động 10 số, VD: 0912 345 678.');
     if (v.title.length < 2) return (out.textContent = 'Vui lòng nhập chức vụ.');
-    if (type === Y.DEPT_TYPE && !v.dept) return (out.textContent = 'Vui lòng chọn phòng ban.');
+    if (type === Y.DEPT_TYPE && !v.dept) return (out.textContent = 'Vui lòng chọn khối/phòng ban/dự án.');
     out.textContent = ''; b.disabled = true; b.textContent = 'Đang cấp mã…';
     Y.api('/api/checkin', { body: v }).then(function (d) {
       Y.toast(d.existing ? 'Bạn đã check-in trước đó · mã ' + d.me.code : 'Check-in thành công! Mã của bạn: ' + d.me.code);

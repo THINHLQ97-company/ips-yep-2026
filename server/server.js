@@ -60,7 +60,7 @@ function validate(b) {
   if (!isPhone(v.phone)) return [null, 'Số điện thoại không hợp lệ. Vui lòng nhập số di động 10 số, VD: 0912 345 678.'];
   if (v.title.length < 2) return [null, 'Vui lòng nhập chức vụ.'];
   if (!TYPES.includes(v.type)) return [null, 'Vui lòng chọn đơn vị.'];
-  if (v.type === DEPT_TYPE) { if (!DEPTS.includes(v.dept)) return [null, 'Vui lòng chọn phòng ban.']; }
+  if (v.type === DEPT_TYPE) { if (!DEPTS.includes(v.dept)) return [null, 'Vui lòng chọn khối/phòng ban/dự án.']; }
   else v.dept = '';   // FIFA, Sakura: no department
   return [v, ''];
 }
@@ -240,7 +240,7 @@ function adminData() {
 function csv() {
   const perfs = Object.fromEntries(db.settings.performances.map((p) => [p.id, p.name]));
   const q = (s) => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
-  const head = ['Mã', 'Họ và tên', 'Số điện thoại', 'Chức vụ', 'Đơn vị', 'Phòng ban', 'Nguồn', 'Giờ check-in', 'Số lần mở trang', 'Bình chọn', 'Giải thưởng'];
+  const head = ['Mã', 'Họ và tên', 'Số điện thoại', 'Chức vụ', 'Đơn vị', 'Khối/Phòng ban/Dự án', 'Nguồn', 'Giờ check-in', 'Số lần mở trang', 'Bình chọn', 'Giải thưởng'];
   const rows = [...db.attendees].sort((a, b) => a.code.localeCompare(b.code)).map((a) => [a.code, a.name, a.phone ? '\t' + a.phone : '', a.title || '', a.type, a.dept || '', a.source === 'btc' ? 'BTC check-in hộ' : 'Tự check-in',
     new Date(a.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), a.visits.length, perfs[(db.votes[a.id] || {}).perf] || '',
     db.winners.filter((w) => w.attendeeId === a.id && w.status === 'won').map((w) => w.tierName + ' – ' + w.item).join('; ')].map(q).join(','));

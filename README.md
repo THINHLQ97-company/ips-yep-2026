@@ -47,7 +47,7 @@ Lần đầu chạy với PostgreSQL, nếu còn file `data/db.json` cũ thì d�
 
 ## Luồng sự kiện
 
-1. **Check-in**: quét QR tại bàn đăng ký → điền Họ tên, Số điện thoại, Chức vụ (tự viết hoa chữ cái đầu), Đơn vị (IPS / FIFA / Sakura), Phòng ban (chỉ khi chọn IPS) → nhận mã số ngẫu nhiên 001–999 (không trùng).
+1. **Check-in**: quét QR tại bàn đăng ký → điền Họ tên, Số điện thoại, Chức vụ (tự viết hoa chữ cái đầu), Đơn vị (IPS / FIFA / Sakura), Khối/Phòng ban/Dự án (chỉ khi chọn IPS) → nhận mã số ngẫu nhiên 001–999 (không trùng).
    Trình duyệt được ghi nhớ 30 ngày; mở lại trang là thấy vé, mã số, lịch sử các lần truy cập. Đổi máy: "Đã check-in trên máy khác?" → nhập họ tên + số điện thoại hoặc mã số (BTC cũng tra được trong dashboard).
    Mỗi số điện thoại chỉ check-in một lần (SĐT là trường dò trùng; nhập +84/84 cũng được quy về 0…). BTC có thể check-in hộ trong dashboard; trùng họ tên nhưng khác SĐT thì dashboard chỉ cảnh báo.
 2. **Bình chọn**: BTC bật "Cổng bình chọn" trong dashboard. Người đã check-in chọn 1 tiết mục (đổi ý được khi cổng còn mở).
@@ -64,7 +64,7 @@ Lần đầu chạy với PostgreSQL, nếu còn file `data/db.json` cũ thì d�
 
 - **Tiết mục, giải thưởng, ảnh giải, thông tin sự kiện, ảnh nền**: chỉnh trực tiếp trong dashboard, không cần deploy lại.
 - Ảnh nền mặc định trong `images/`: `bg-desktop.webp` (16:9), `bg-mobile.webp` (9:16), `bg-stage.webp` (LED 16:9), `og.jpg` (ảnh chia sẻ link).
-- Danh sách phòng ban: `DEPTS` trong `server/server.js` và `js/yep-common.js` (sửa cả hai).
+- Danh sách khối/phòng ban/dự án: `DEPTS` trong `server/server.js` và `js/yep-common.js` (sửa cả hai).
 - Prompt tạo ảnh bằng ChatGPT: xem `PROMPTS.md`.
 
 ## Tập dượt
