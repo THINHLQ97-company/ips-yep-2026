@@ -39,13 +39,13 @@
           return '<div class="tw3 shade" data-p="' + esc(p.id) + '" style="--c:' + esc(p.color) + ';--w:' + w + 'px;--h:60px">' +
             '<div class="beam"></div><div class="mark"></div>' +
             '<div class="cub"><i class="bk"></i><i class="lf"></i><i class="rt"></i><i class="tp"></i><i class="fr"></i></div>' +
-            '<div class="lab"><b>' + esc(p.name) + '</b><span>' + esc(p.team) + '</span><br><em>0 tầng</em></div></div>';
+            '<div class="lab"><b>' + esc(p.name) + '</b><span>' + esc(p.team) + '</span><br><em>0 tầng</em><small class="vc">0 phiếu bầu</small></div></div>';
         }).join('') : '');
         if (!P.length) world.insertAdjacentHTML('beforeend', '<div class="st-empty st-glass">Chưa có tiết mục</div>');
       }
       // every `votesPerFloor` votes build one floor; the floor in progress grows vote by vote.
       // Floor height shrinks as towers get taller so the tallest one always fits the screen.
-      var votes = st.votes || {}, max = 0, vpf = Math.max(1, +st.votesPerFloor || 10), MAXH = 300, LOBBY = 34;
+      var votes = st.votes || {}, max = 0, vpf = Math.max(1, +st.votesPerFloor || 10), MAXH = 230, LOBBY = 34;
       P.forEach(function (p) { max = Math.max(max, votes[p.id] || 0); });
       var fh = Math.max(6, Math.min(28, MAXH / Math.max(1, Math.ceil(max / vpf))));
       world.style.setProperty('--fh', fh.toFixed(2) + 'px');
@@ -54,6 +54,7 @@
         t.style.setProperty('--h', h.toFixed(1) + 'px');
         t.classList.toggle('lead', max > 0 && v === max);
         t.querySelector('em').textContent = floors + ' tầng';
+        t.querySelector('.vc').textContent = v + ' phiếu bầu';
         if (prev[id] !== undefined && floors > prev[id]) { t.classList.remove('bump'); void t.offsetWidth; t.classList.add('bump'); }
         prev[id] = floors;
       });

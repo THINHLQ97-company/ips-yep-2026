@@ -143,13 +143,36 @@
         '<div class="panel"><h2>Danh sách tiết mục</h2><div class="ed" id="ped"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn" id="padd">+ Thêm tiết mục</button><button class="btn primary" id="psave">Lưu tiết mục</button><span class="hint" id="pmsg"></span></div></div></div>';
       $('#vpf').addEventListener('change', function () { api('/admin/api/settings', { body: { votesPerFloor: this.value } }).then(function () { toast('Đã lưu: ' + $('#vpf').value + ' phiếu = 1 tầng'); load(); }).catch(fail); });
       $('#vt').addEventListener('click', function () { api('/admin/api/settings', { body: { votingOpen: !s.votingOpen } }).then(function () { toast(s.votingOpen ? 'Đã đóng bình chọn' : 'Đã mở bình chọn'); load(); }).catch(fail); });
+      m.insertAdjacentHTML('beforeend', '<div class="panel"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Ai đã bình chọn cho đội nào</h2>' +
+        '<input class="i" id="vq" placeholder="Tìm tên, mã, phòng ban" style="max-width:260px;margin-left:auto"><select class="i" id="vf" style="max-width:220px"><option value="">Tất cả tiết mục</option></select></div>' +
+        '<div class="table-wrap"><table><thead><tr><th>Mã</th><th>Họ và tên</th><th>Khối · Phòng ban</th><th>Bình chọn cho</th><th>Thời điểm</th></tr></thead><tbody id="vtbl"></tbody></table></div><p class="hint" id="vcnt" style="margin-top:8px"></p></div>');
+      $('#vq').addEventListener('input', drawVoters); $('#vf').addEventListener('change', drawVoters);
       edP = JSON.parse(JSON.stringify(P)); drawPerf();
       $('#padd').addEventListener('click', function () { if (edP.length >= 8) return; edP.push({ id: 'p' + Date.now().toString(36), name: 'Tiết mục ' + (edP.length + 1), team: '', color: Y.PALETTE[edP.length % 6] }); dirty.perf = 1; drawPerf(); });
       $('#psave').addEventListener('click', function () { api('/admin/api/settings', { body: { performances: edP } }).then(function () { dirty.perf = 0; toast('Đã lưu tiết mục'); load(); }).catch(fail); });
     }
+    var vf = $('#vf'), cur = vf.value;
+    vf.innerHTML = '<option value="">Tất cả tiết mục</option>' + P.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + ' (' + (counts[p.id] || 0) + ')</option>'; }).join('') + '<option value="-">Chưa bình chọn</option>';
+    vf.value = cur; drawVoters();
     $('#vres').innerHTML = P.map(function (p) { var n = counts[p.id] || 0; return '<div class="bar-row" style="--c:' + esc(p.color) + '"><span>' + esc(p.name) + '</span><div class="b"><i style="width:' + (n / mx * 100) + '%"></i></div><span class="n">' + n + '</span></div>'; }).join('') || '<div class="empty">Chưa có tiết mục.</div>';
   }
   var edP = [];
+  function drawVoters() {
+    var tb = $('#vtbl'); if (!tb) return;
+    var perfs = {}; D.settings.performances.forEach(function (p) { perfs[p.id] = p; });
+    var f = $('#vf').value, q = ($('#vq').value || '').toLowerCase().trim();
+    var rows = D.attendees.filter(function (a) {
+      if (f === '-') { if (a.perf) return false; } else if (f && a.perf !== f) return false; else if (!f && !a.perf) return false;
+      return !q || [a.code, a.name, a.dept, a.type].join(' ').toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return (b.votedAt || 0) - (a.votedAt || 0) || a.code.localeCompare(b.code); });
+    $('#vcnt').textContent = rows.length + ' người' + (f === '-' ? ' đã check-in nhưng chưa bình chọn' : '');
+    tb.innerHTML = rows.length ? rows.map(function (a) {
+      var p = perfs[a.perf];
+      return '<tr><td class="code">' + esc(a.code) + '</td><td><b>' + esc(a.name) + '</b></td><td>' + esc(a.type) + '<span class="s">' + esc(a.dept) + '</span></td>' +
+        '<td>' + (p ? '<span class="pill" style="background:color-mix(in srgb,' + esc(p.color) + ' 25%,#fff);color:#141b3d">' + esc(p.name) + '</span>' : (a.perf ? '<span class="pill p-dim">Tiết mục đã xoá</span>' : '<span class="pill p-dim">Chưa bình chọn</span>')) + '</td>' +
+        '<td>' + esc(a.votedAt ? Y.fmtT(a.votedAt) : '') + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="empty">Không có dữ liệu.</td></tr>';
+  }
   function drawPerf() {
     $('#ped').innerHTML = edP.map(function (p, i) {
       return '<div class="edr p" data-i="' + i + '" style="--c:' + esc(p.color) + '"><span class="no">' + (i + 1) + '</span><input class="i" data-f="name" value="' + esc(p.name) + '" placeholder="Tên tiết mục"><input class="i" data-f="team" value="' + esc(p.team) + '" placeholder="Nhóm / phòng ban biểu diễn">' +

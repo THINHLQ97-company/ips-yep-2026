@@ -224,7 +224,7 @@ function adminData() {
   return {
     settings: db.settings, defaultUrl: BASE_URL,
     attendees: db.attendees.map((a) => ({ id: a.id, code: a.code, name: a.name, type: a.type, dept: a.dept, email: a.email, phone: a.phone, source: a.source, sample: a.sample,
-      createdAt: a.createdAt, lastSeen: a.lastSeen, visits: a.visits.length, perf: (db.votes[a.id] || {}).perf || '' })),
+      createdAt: a.createdAt, lastSeen: a.lastSeen, visits: a.visits.length, perf: (db.votes[a.id] || {}).perf || '', votedAt: (db.votes[a.id] || {}).at || 0 })),
     winners: db.winners, audit: db.audit.slice(0, 100)
   };
 }
