@@ -21,7 +21,7 @@ test('store normalization supplies official defaults without overwriting persist
 test('actual hero render falls back for blanks, escapes custom facts and replaces stale realtime values', () => {
   const nodes = new Map();
   const $ = key => { if (!nodes.has(key)) nodes.set(key, { innerHTML: '', textContent: '' }); return nodes.get(key); };
-  const ctx = vm.createContext({ $, $$: () => [], esc, location: {}, root: {}, Y: { fx: { splitTitle() {} } }, renderCheckin() {}, renderVoteLinks() {}, renderPrizes() {}, me: null });
+  const ctx = vm.createContext({ $, $$: () => [], esc, location: {}, root: {}, Y: { applyAppearance() {}, fx: { splitTitle() {} } }, renderCheckin() {}, renderVoteLinks() {}, renderPrizes() {}, me: null });
   const src = read('js/yep.js');
   vm.runInContext('var st; ' + src.slice(src.indexOf('  function render()'), src.indexOf('  var ckMode')) + '\nthis.update = function(s) { st=s; render(); };', ctx);
   ctx.update({ eventDate: ' ', venue: '' });
@@ -57,8 +57,8 @@ test('markup and CSS reserve explicit 9:16 mobile and bounded stage regions', ()
   const html = read('index.html'), css = read('css/yep.css'), stage = read('css/stage.css');
   assert.match(html, /id="heroArt"[^>]*width="1080" height="1920"/);
   assert.equal((html.match(/id="facts"/g) || []).length, 1);
-  assert.doesNotMatch(html, /road-line|count-chip glass ring m-only/);
-  assert.doesNotMatch(css, /-36vw|53\.5%|\.facts-row \{ display: none/);
+  assert.match(html, /road-line/);
+  assert.match(css, /data-visual-preset="official"/);
   assert.match(css, /aspect-ratio: 9 \/ 16/);
   assert.match(css, /grid-template-rows: 8fr 32fr 2fr 18fr 40fr/);
   assert.match(css, /color: #39dcff/);

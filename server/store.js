@@ -17,6 +17,8 @@ const DEFAULT_SETTINGS = {
   votesPerFloor: 10,        // vote screen: every N votes builds one floor
   raceSeconds: 20,          // lucky draw: length of the final race
   publicUrl: '',            // overrides PUBLIC_URL for QR codes
+  visualPreset: 'official',
+  appearanceBackgrounds: { legacy: { bg: '', bgM: '', bgStage: '' }, official: { bg: '', bgM: '', bgStage: '' } },
   bg: '', bgM: '', bgStage: '',   // uploaded backgrounds (/uploads/...); empty = files in /images
   performances: [
     { id: 'p1', name: 'Tiết mục 1', team: 'Đội biểu diễn 1', color: '#ffc928' },
@@ -34,9 +36,28 @@ const DEFAULT_SETTINGS = {
   ]
 };
 
+const PRESETS = ['legacy', 'official'];
+const BG_KEYS = ['bg', 'bgM', 'bgStage'];
+const record = x => x && typeof x === 'object' && !Array.isArray(x);
+const upload = x => typeof x === 'string' && /^\/uploads\/[\w.-]+$/.test(x) ? x : '';
+function resolveAppearance(s) {
+  for (const k of BG_KEYS) s[k] = s.appearanceBackgrounds[s.visualPreset][k];
+}
 function normalize(db) {
-  db = db && typeof db === 'object' ? db : {};
-  db.settings = Object.assign({}, DEFAULT_SETTINGS, db.settings || {});
+  db = record(db) ? db : {};
+  const raw = record(db.settings) ? db.settings : {};
+  db.settings = Object.assign(JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), Object.fromEntries(Object.entries(raw).filter(([k]) => !['__proto__', 'constructor', 'prototype'].includes(k))));
+  const s = db.settings;
+  s.visualPreset = PRESETS.includes(raw.visualPreset) ? raw.visualPreset : 'official';
+  // Presence marks migration complete, even for malformed/empty versioned data.
+  const migrated = Object.hasOwn(raw, 'appearanceBackgrounds');
+  s.appearanceBackgrounds = {};
+  for (const preset of PRESETS) {
+    const set = migrated && record(raw.appearanceBackgrounds) && Object.hasOwn(raw.appearanceBackgrounds, preset) && record(raw.appearanceBackgrounds[preset]) ? raw.appearanceBackgrounds[preset] : {};
+    s.appearanceBackgrounds[preset] = {};
+    for (const k of BG_KEYS) s.appearanceBackgrounds[preset][k] = upload(migrated ? (Object.hasOwn(set, k) ? set[k] : '') : raw[k]);
+  }
+  resolveAppearance(s);
   db.attendees = db.attendees || [];   // { id, token, code, name, phone, phoneNorm (duplicate key), title, type, dept, source, sample, createdAt, lastSeen, visits:[ts] }
   db.votes = db.votes || {};           // attendeeId -> { perf, at }
   db.winners = db.winners || [];       // { id, attendeeId, code, name, dept, type, tier, tierName, item, at, status }
@@ -156,4 +177,4 @@ function createStore(env, dataDir) {
   return s;
 }
 
-module.exports = { createStore, DEFAULT_SETTINGS };
+module.exports = { createStore, DEFAULT_SETTINGS, normalize, resolveAppearance };

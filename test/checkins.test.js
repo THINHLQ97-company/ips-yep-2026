@@ -100,7 +100,7 @@ test('isolated HTTP validation, sample generation and legacy retention', { timeo
   const env = { ...process.env, PORT: '0', DATA_DIR: dir, ADMIN_PASSWORD: password };
   // Explicit empties also prevent .env from restoring any database settings.
   for (const key of ['DATABASE_URL', 'POSTGRES_URL', 'POSTGRESQL_URL', 'PGHOST', 'PGUSER', 'PGPASSWORD', 'PGDATABASE', 'PGPORT']) env[key] = '';
-  const child = spawn(process.execPath, ['-e', "const s=require('./server/server');s.server.on('listening',()=>console.log('TEST_PORT='+s.server.address().port));s.start();"], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, ['-e', "const fs=require('fs');const exists=fs.existsSync;fs.existsSync=f=>String(f).endsWith('/.env')?false:exists(f);const s=require('./server/server');s.server.on('listening',()=>console.log('TEST_PORT='+s.server.address().port));s.start();"], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
   t.after(async () => {
     if (child.exitCode === null) { const exit = once(child, 'exit'); child.kill(); await exit; }
     fs.rmSync(dir, { recursive: true, force: true });

@@ -17,7 +17,7 @@
 </head>
 <body>
 <div class="netbar" id="netbar" hidden>Đang kết nối lại máy chủ…</div>
-<main class="t-yep" id="yep">
+<main class="t-yep" id="yep" data-visual-preset="official">
 
   <div class="bg-layer" id="bgLayer" aria-hidden="true"></div>
   <nav class="topmenu glass ring" id="topmenu">
@@ -37,7 +37,13 @@
       <div class="title-block">
         <div class="eyebrow"><span class="logo-chip"><img src="images/ips-logo-color.png" alt="IPS · Hơn cả dịch vụ"></span><i></i><span data-f="eventName">IPS Year End Party 2026</span></div>
         <h1 class="theme-title" id="themeTitle" data-f-title="theme">The Other Way</h1>
+        <svg class="road-line" viewBox="0 0 760 46" preserveAspectRatio="none" aria-hidden="true">
+          <defs><linearGradient id="roadGrad" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#3fb8ff"/><stop offset=".35" stop-color="#0089cf"/><stop offset=".6" stop-color="#b44dff"/><stop offset=".8" stop-color="#ed1c24"/><stop offset="1" stop-color="#ffc928"/></linearGradient></defs>
+          <path id="roadPath" pathLength="1000" d="M4 38 C 150 38, 220 10, 360 22 S 560 42, 640 18 S 730 6, 756 8"/>
+          <circle r="6" fill="#fff"><animateMotion dur="3.6s" begin="2.6s" repeatCount="indefinite" rotate="auto"><mpath href="#roadPath"/></animateMotion></circle>
+        </svg>
         <span class="vi" data-f="themeVi">Mở lối đi riêng</span>
+        <span class="count-chip glass ring m-only"><i></i><b class="liveCount">0</b>người đã check-in</span>
         <div class="facts-row" id="facts" aria-live="polite"></div>
       </div>
       <!-- Textless mobile background: 9:16, runners reserved below 70%. -->
@@ -46,7 +52,7 @@
         <div class="cta-row">
           <button type="button" class="btn-shine" id="heroCta" data-go="checkin">Check-in ngay</button>
           <a class="btn-vote" href="/vote/" data-vote-link hidden><i></i>Bình chọn văn nghệ</a>
-          <span class="count-chip glass ring"><i></i><b class="liveCount">0</b>người đã check-in</span>
+          <span class="count-chip glass ring d-only"><i></i><b class="liveCount">0</b>người đã check-in</span>
         </div>
       </div>
     </div>

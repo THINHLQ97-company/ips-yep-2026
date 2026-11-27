@@ -408,29 +408,31 @@
 
   function vLook(m, full) {
     if (!full && dirty.look) return;
-    var s = D.settings;
+    var s = D.settings, appliedPreset = s.visualPreset || 'official';
+    var presetName = appliedPreset === 'legacy' ? 'Giao diện cũ' : 'Nhận diện Marketing mới';
     var bgs = [['bg', 'Nền trang check-in (máy tính, 1920×1080, 16:9)', '/images/bg-desktop.webp', ''], ['bgM', 'Nền điện thoại (1080×1920, 9:16)', '/images/bg-mobile.webp', 'tall'], ['bgStage', 'Nền màn hình sân khấu (1920×1080, 16:9)', '/images/bg-stage.webp', '']];
-    m.innerHTML = head('Giao diện & sự kiện', '', '<button class="btn primary" id="lsave">Lưu thông tin</button>') +
-      '<div class="panel" style="margin-bottom:16px"><h2>Thông tin sự kiện</h2><div class="grid3">' +
+    m.innerHTML = head('Giao diện & sự kiện', '', '<button class="btn primary" id="lsave">Lưu & áp dụng</button>') +
+      '<div class="panel" style="margin-bottom:16px"><h2>Giao diện dùng chung</h2><p>Đang áp dụng: <b>' + presetName + '</b></p><label class="f">Chọn giao diện<select class="i" data-k="visualPreset"><option value="legacy"' + (appliedPreset === 'legacy' ? ' selected' : '') + '>Giao diện cũ</option><option value="official"' + (appliedPreset === 'official' ? ' selected' : '') + '>Nhận diện Marketing mới</option></select></label><p class="hint">Giao diện cũ: bố cục minh họa, chữ nhiều màu và slogan vàng. Nhận diện Marketing mới: tiêu đề cyan, slogan trắng, thông tin căn giữa. Chọn rồi bấm Lưu & áp dụng để áp dụng cho mọi người cùng thông tin bên dưới.</p><p id="lookState" aria-live="polite">Đã áp dụng</p></div><div class="panel" style="margin-bottom:16px"><h2>Thông tin sự kiện</h2><div class="grid3">' +
       [['eventName', 'Tên sự kiện'], ['theme', 'Chủ đề (tiếng Anh)'], ['themeVi', 'Chủ đề (tiếng Việt)'], ['eventDate', 'Ngày sự kiện (vd 26.12.2026)'], ['venue', 'Địa điểm'], ['publicUrl', 'Link công khai (dùng cho mã QR)']].map(function (f) {
         return '<label class="f">' + f[1] + '<input class="i" data-k="' + f[0] + '" value="' + esc(s[f[0]] || '') + '"' + (f[0] === 'publicUrl' ? ' placeholder="' + esc(D.defaultUrl) + '"' : '') + '></label>'; }).join('') + '</div></div>' +
-      '<div class="panel"><h2>Ảnh nền</h2><p class="hint" style="margin:-6px 0 12px">Ảnh mặc định nằm trong thư mục images/ của repo. Tải ảnh mới ở đây để thay mà không cần deploy lại. Dùng ảnh nền không chữ, không logo; giao diện sẽ hiển thị chữ và logo.</p><div class="bgs">' + bgs.map(function (b) {
+      '<div class="panel"><h2>Ảnh nền · Đang áp dụng: ' + presetName + '</h2><p class="hint" style="margin:-6px 0 12px">Chưa có bộ ảnh Marketing mới được cung cấp. Hai giao diện đang dùng lại ảnh hiện có; ảnh tải lên được giữ riêng từng giao diện. Lưu lựa chọn giao diện trước khi sửa ảnh. Ảnh mặc định nằm trong thư mục images/ của repo. Tải ảnh mới ở đây để thay mà không cần deploy lại. Dùng ảnh nền không chữ, không logo; giao diện sẽ hiển thị chữ và logo.</p><div class="bgs">' + bgs.map(function (b) {
         var cur = s[b[0]] || b[2];
         return '<div class="bgc"><div class="pv ' + b[3] + '" style="background-image:url(\'' + esc(cur) + '\')"></div><div class="body"><b>' + b[1] + '</b><span class="hint">' + (s[b[0]] ? 'Đang dùng ảnh tải lên' : 'Đang dùng ảnh mặc định') + '</span>' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="btn file-btn">Tải ảnh mới<input type="file" accept="image/png,image/jpeg,image/webp" data-bg="' + b[0] + '"></span>' + (s[b[0]] ? '<button class="btn bad" data-reset="' + b[0] + '">Dùng ảnh mặc định</button>' : '') + '</div></div></div>'; }).join('') + '</div></div>';
-    $$('[data-k]', m).forEach(function (i) { i.addEventListener('input', function () { dirty.look = 1; }); });
+    $$('[data-k]', m).forEach(function (i) { ['input', 'change'].forEach(function (event) { i.addEventListener(event, function () { dirty.look = 1; $('#lookState').textContent = 'Chưa lưu thay đổi'; }); }); });
     $('#lsave').addEventListener('click', function () {
       var b = {}; $$('[data-k]', m).forEach(function (i) { b[i.dataset.k] = i.value; });
-      api('/admin/api/settings', { body: b }).then(function () { dirty.look = 0; toast('Đã lưu'); load().then(function () { vLook(m, true); }); }).catch(fail);
+      var btn = $('#lsave'); btn.disabled = true; $('#lookState').textContent = 'Đang lưu…';
+      api('/admin/api/settings', { body: b }).then(function () { dirty.look = 0; toast('Đã lưu và áp dụng'); return load(); }).then(function () { vLook(m, true); }).catch(function (er) { btn.disabled = false; $('#lookState').textContent = 'Chưa lưu được thay đổi'; fail(er); });
     });
     $$('[data-bg]', m).forEach(function (inp) {
       inp.addEventListener('change', function () {
-        var f = inp.files[0]; if (!f) return; toast('Đang tải ảnh…');
-        upload(f).then(function (u) { var b = {}; b[inp.dataset.bg] = u; return api('/admin/api/settings', { body: b }); }).then(function () { toast('Đã đổi ảnh nền'); return load(); }).then(function () { vLook(m, true); }).catch(fail);
+        var f = inp.files[0]; if (!f) return; var targetPreset = appliedPreset; inp.disabled = true; toast('Đang tải ảnh…');
+        upload(f).then(function (u) { var b = { backgroundPreset: targetPreset }; b[inp.dataset.bg] = u; return api('/admin/api/settings', { body: b }); }).then(function () { toast('Đã đổi ảnh nền'); return load(); }).then(function () { inp.disabled = false; inp.value = ''; if (tab === 'look') vLook(m, false); }).catch(function (er) { inp.disabled = false; fail(er); });
       });
     });
     $$('[data-reset]', m).forEach(function (btn) {
-      btn.addEventListener('click', function () { var b = {}; b[btn.dataset.reset] = ''; api('/admin/api/settings', { body: b }).then(load).then(function () { vLook(m, true); }).catch(fail); });
+      btn.addEventListener('click', function () { var b = { backgroundPreset: appliedPreset }; btn.disabled = true; b[btn.dataset.reset] = ''; api('/admin/api/settings', { body: b }).then(load).then(function () { btn.disabled = false; if (tab === 'look') vLook(m, false); }).catch(function (er) { btn.disabled = false; fail(er); }); });
     });
   }
 

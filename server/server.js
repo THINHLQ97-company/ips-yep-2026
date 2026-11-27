@@ -6,7 +6,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { createStore } = require('./store');
+const { createStore, resolveAppearance } = require('./store');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -86,7 +86,7 @@ function publicStatus() {
   for (const v of Object.values(db.votes)) votes[v.perf] = (votes[v.perf] || 0) + 1;
   return {
     eventName: s.eventName, theme: s.theme, themeVi: s.themeVi, eventDate: s.eventDate, venue: s.venue,
-    votingOpen: s.votingOpen, votesPerFloor: s.votesPerFloor, bg: s.bg, bgM: s.bgM, bgStage: s.bgStage,
+    visualPreset: s.visualPreset, votingOpen: s.votingOpen, votesPerFloor: s.votesPerFloor, bg: s.bg, bgM: s.bgM, bgStage: s.bgStage,
     performances: s.performances, prizes: s.prizes, votes, totalVotes: Object.keys(db.votes).length,
     winners: revealed().map((w) => ({ id: w.id, code: w.code, name: w.name, dept: w.dept, tier: w.tier, tierName: w.tierName, item: w.item, at: w.at, status: w.status })),
     checkins: db.attendees.length, publicUrl: baseOf(s.publicUrl || BASE_URL)
@@ -297,12 +297,20 @@ async function admin(req, res, url) {
   }
   if (p === '/admin/api/settings' && req.method === 'POST') {
     const b = await readJson(req), s = db.settings;
+    const own = k => Object.hasOwn(b, k);
+    if (!b || typeof b !== 'object' || Array.isArray(b) ||
+        ['visualPreset', 'backgroundPreset'].some(k => own(k) && !['legacy', 'official'].includes(b[k])) ||
+        ['__proto__', 'prototype', 'constructor', 'appearanceBackgrounds'].some(own))
+      return send(res, 400, { error: 'Cài đặt giao diện không hợp lệ.' });
+    const target = b.backgroundPreset || b.visualPreset || s.visualPreset;
     for (const k of ['eventName', 'theme', 'themeVi', 'eventDate', 'venue']) if (k in b) s[k] = str(b[k], 120);
     if ('publicUrl' in b) { const u = str(b.publicUrl, 300); if (u && !/^https?:\/\//.test(u)) return send(res, 400, { error: 'Link phải bắt đầu bằng https://' }); s.publicUrl = baseOf(u); }
     if ('votingOpen' in b) s.votingOpen = !!b.votingOpen;
     if ('votesPerFloor' in b) s.votesPerFloor = Math.max(1, Math.min(100, parseInt(b.votesPerFloor, 10) || 10));
     if ('raceSeconds' in b) s.raceSeconds = Math.max(5, Math.min(120, parseInt(b.raceSeconds, 10) || 20));
-    for (const k of ['bg', 'bgM', 'bgStage']) if (k in b) s[k] = isUpload(b[k]) ? b[k] : '';
+    for (const k of ['bg', 'bgM', 'bgStage']) if (own(k)) s.appearanceBackgrounds[target][k] = isUpload(b[k]) ? b[k] : '';
+    if (own('visualPreset')) s.visualPreset = b.visualPreset;
+    resolveAppearance(s);
     if (Array.isArray(b.performances)) s.performances = b.performances.slice(0, 8).map((x, i) => ({ id: str(x.id, 40) || 'p' + token(4), name: str(x.name, 80) || 'Tiết mục ' + (i + 1), team: str(x.team, 80), color: isColor(x.color) ? x.color : '#ffc928' }));
     if (Array.isArray(b.prizes)) s.prizes = b.prizes.slice(0, 20).map((x) => ({ id: str(x.id, 40) || 'z' + token(4), name: str(x.name, 60) || 'Giải', item: str(x.item, 80), count: Math.max(1, Math.min(500, parseInt(x.count, 10) || 1)),
       art: ARTS.includes(x.art) ? x.art : 'gift', color: isColor(x.color) ? x.color : '#ffc928', img: isUpload(x.img) ? x.img : '' }));

@@ -75,9 +75,8 @@
     if (!st) return;
     $$('[data-f]').forEach(function (el) { var v = st[el.dataset.f]; if (v) el.textContent = v; });
     if (location.hash === '#vote') { location.replace('/vote/'); return; }
-    if (st.bg && Y.safeImg(st.bg)) root.style.setProperty('--bg', 'url("' + st.bg + '")');
-    if (st.bgM && Y.safeImg(st.bgM)) { root.style.setProperty('--bgm', 'url("' + st.bgM + '")'); if ($('#heroArt').getAttribute('src') !== st.bgM) $('#heroArt').src = st.bgM; }
-    Y.fx.splitTitle($('#themeTitle'), st.theme || 'The Other Way');
+    Y.applyAppearance(st, root, $('#heroArt'));
+    Y.fx.splitTitle($('#themeTitle'), st.theme || 'The Other Way', st.visualPreset);
     var facts = [];
     facts.push(['Thời gian', String(st.eventDate || '').trim() ? st.eventDate : '26.12.2026']);
     facts.push(['Địa điểm', String(st.venue || '').trim() ? st.venue : 'METROPOLE, HCMC']);

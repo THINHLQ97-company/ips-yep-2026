@@ -11,6 +11,7 @@
   }
   function render() {
     if (!st) return;
+    Y.applyAppearance(st);
     $$('[data-f]').forEach(function (el) { var v = st[el.dataset.f]; if (v) el.textContent = v; });
     var open = !!st.votingOpen, P = st.performances || [], can = open && me;
     document.body.classList.toggle('voting-open', open);

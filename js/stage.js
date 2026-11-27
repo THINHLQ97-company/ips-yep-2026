@@ -11,7 +11,11 @@
     if (window.ResizeObserver) new ResizeObserver(go).observe(wrap); else window.addEventListener('resize', go);
     go();
   }
-  function setBg(stage, url) { if (url && Y.safeImg(url)) { stage.setAttribute('data-bg', ''); stage.style.setProperty('--bg', 'url("' + url + '")'); } }
+  function setBg(stage, url, preset) {
+    stage.setAttribute('data-visual-preset', preset === 'legacy' ? 'legacy' : 'official');
+    if (url && /^\/uploads\/[\w.-]+$/.test(url)) { stage.setAttribute('data-bg', ''); stage.style.setProperty('--bg', 'url("' + url + '")'); }
+    else { stage.removeAttribute('data-bg'); stage.style.removeProperty('--bg'); }
+  }
 
   /* ───────── vote towers ───────── */
   function towers(stage) {
@@ -22,7 +26,7 @@
       '<div class="scene"><div class="world' + (Y.reduce ? '' : ' sway') + '" data-k="world"><div class="ground"></div></div></div>';
     var world = stage.querySelector('[data-k=world]'), key = '', qrUrl = '', prev = {};
     return function update(st) {
-      setBg(stage, st.bgStage);
+      setBg(stage, st.bgStage, st.visualPreset);
       stage.querySelector('[data-k=event]').textContent = st.eventName || 'IPS Year End Party 2026';
       var url = (st.publicUrl || location.origin) + '/vote/';
       if (url !== qrUrl) { qrUrl = url; stage.querySelector('[data-k=qr]').innerHTML = Y.qrSvg(url); }
@@ -134,7 +138,7 @@
       });
     }
     return {
-      setTier: function (t, left, st) { setBg(stage, st && st.bgStage); podium.innerHTML = podiumHTML(t, left); buildSlabs(podium); },
+      setTier: function (t, left, st) { setBg(stage, st && st.bgStage, st && st.visualPreset); podium.innerHTML = podiumHTML(t, left); buildSlabs(podium); },
       idle: function (codes) {
         if (running) return;
         zone.classList.remove('qualifying', 'finals'); leaders.classList.remove('on'); nextBtn.classList.remove('on');

@@ -7,11 +7,13 @@
   var mobile = window.matchMedia('(max-width: 900px)');
 
   /* ── title: split into words + letters; OTHER is emphasized; custom titles retain their word mapping ── */
-  function splitTitle(el, text) {
-    if (!el || el.dataset.txt === text) return;
+  function splitTitle(el, text, preset) {
+    preset = preset === 'legacy' ? 'legacy' : 'official';
+    if (!el || (el.dataset.txt === text && el.dataset.preset === preset)) return;
+    el.dataset.preset = preset;
     el.dataset.txt = text; el.setAttribute('aria-label', text);
     var words = String(text).trim().split(/\s+/), i = 0;
-    var official = String(text).trim().toUpperCase() === 'THE OTHER WAY';
+    var official = preset === 'official' && String(text).trim().toUpperCase() === 'THE OTHER WAY';
     var hl = official ? function (k) { return k === 1; } : words.length >= 3 ? function (k) { return k > 0 && k < words.length - 1; } : function (k) { return k === words.length - 1; };
     el.innerHTML = words.map(function (w, k) {
       return '<span class="w' + (hl(k) ? ' hl' : '') + '" aria-hidden="true">' + Array.from(w).map(function (ch, j) {

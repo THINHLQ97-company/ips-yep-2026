@@ -88,5 +88,17 @@
     box.insertAdjacentHTML('beforeend', h);
   }
 
-  window.YEP = { $: $, $$: $$, esc: esc, reduce: reduce, DEPTS: DEPTS, TYPES: TYPES, DEPT_TYPE: DEPT_TYPE, titleCase: titleCase, unitOf: unitOf, normPhone: normPhone, isPhone: isPhone, fmtPhone: fmtPhone, PALETTE: PALETTE, ARTS: ARTS, fmtT: fmtT, api: api, live: live, toast: toast, art: art, safeImg: safeImg, prizePic: prizePic, qrSvg: qrSvg, tilt: tilt, confetti: confetti };
+  // Shared realtime appearance; never rebuild forms, identity or stage scenes here.
+  function applyAppearance(st, root, hero) {
+    root = root || document.documentElement;
+    root.setAttribute('data-visual-preset', st.visualPreset === 'legacy' ? 'legacy' : 'official');
+    [['bg', '--bg'], ['bgM', '--bgm'], ['bgStage', '--bgstage']].forEach(function (pair) {
+      var url = st[pair[0]];
+      if (url && /^\/uploads\/[\w.-]+$/.test(url)) root.style.setProperty(pair[1], 'url("' + url + '")');
+      else root.style.removeProperty(pair[1]);
+    });
+    if (hero) hero.src = st.bgM && /^\/uploads\/[\w.-]+$/.test(st.bgM) ? st.bgM : '/images/bg-mobile.webp';
+  }
+
+  window.YEP = { $: $, $$: $$, esc: esc, reduce: reduce, DEPTS: DEPTS, TYPES: TYPES, DEPT_TYPE: DEPT_TYPE, titleCase: titleCase, unitOf: unitOf, normPhone: normPhone, isPhone: isPhone, fmtPhone: fmtPhone, PALETTE: PALETTE, ARTS: ARTS, fmtT: fmtT, api: api, live: live, toast: toast, art: art, safeImg: safeImg, applyAppearance: applyAppearance, prizePic: prizePic, qrSvg: qrSvg, tilt: tilt, confetti: confetti };
 })();
