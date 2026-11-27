@@ -240,10 +240,17 @@ async function admin(req, res, url) {
   const p = url.pathname, ip = clientIp(req);
   if (p === '/admin/api/session' && req.method === 'GET') return send(res, 200, { admin: isAdmin(req), configured: !!ADMIN_PASSWORD });
   if (p === '/admin/api/login' && req.method === 'POST') {
-    if (limited('login:' + ip, 8, 900e3)) return send(res, 429, { error: 'Sai quá nhiều lần. Vui lòng đợi 15 phút.' });
+    // only wrong passwords count: 10 per 10 minutes per IP
+    const key = 'login-fail:' + ip, t = now(), fails = (buckets.get(key) || []).filter((x) => t - x < 600e3);
+    if (fails.length >= 10) return send(res, 429, { error: 'Sai quá nhiều lần. Vui lòng thử lại sau ' + Math.ceil((fails[0] + 600e3 - t) / 60e3) + ' phút.' });
     if (!ADMIN_PASSWORD) return send(res, 503, { error: 'Máy chủ chưa đặt ADMIN_PASSWORD.' });
     const b = await readJson(req);
-    if (!sameSecret(b.password || '', ADMIN_PASSWORD)) { store.audit('login failed', ip); store.save(); return send(res, 401, { error: 'Sai mật khẩu.' }); }
+    if (!sameSecret(String(b.password || '').trim(), ADMIN_PASSWORD)) {
+      fails.push(t); buckets.set(key, fails);
+      store.audit('login failed', ip); store.save();
+      return send(res, 401, { error: 'Sai mật khẩu. Còn ' + (10 - fails.length) + ' lần thử.' });
+    }
+    buckets.delete(key);
     store.audit('login', ip); store.save();
     return send(res, 200, { ok: true }, { 'Set-Cookie': setCookie('yep_admin', makeSession(), 1) });
   }
