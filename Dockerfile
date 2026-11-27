@@ -1,8 +1,9 @@
-# IPS YEP 2026: Node.js server (check-in page + voting + lucky draw + dashboard). No npm dependencies.
+# IPS YEP 2026: Node.js server (check-in page + voting + lucky draw + dashboard). Data in PostgreSQL (DATABASE_URL) or a JSON file.
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/app/data
-COPY package.json ./
+COPY package*.json ./
+RUN npm install --omit=dev --no-audit --no-fund
 COPY . .
 RUN chmod -R a+rX /app && mkdir -p /app/data && chown -R node:node /app
 USER node

@@ -23,17 +23,13 @@ const env = process.env;
 const PORT = Number(env.PORT || 8000);
 const BASE_URL = (env.PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
 const DATA_DIR = path.resolve(ROOT, env.DATA_DIR || 'data');
-const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const ADMIN_PASSWORD = env.ADMIN_PASSWORD || '';
 if (!ADMIN_PASSWORD) console.warn('[!] ADMIN_PASSWORD chưa đặt: dashboard đang khoá. Thêm ADMIN_PASSWORD vào .env rồi khởi động lại.');
 const REVEAL_MS = 18000;   // a fresh draw stays hidden from phones/screens until both rounds (wall + race) have played
 
-const store = createStore(path.join(DATA_DIR, 'db.json'));
+const store = createStore(env, DATA_DIR);
 const db = store.db;
-if (!db.auth.secret) { db.auth.secret = crypto.randomBytes(32).toString('hex'); store.save(); }
-// Changing ADMIN_PASSWORD signs every dashboard session out.
-const SESSION_SECRET = crypto.createHash('sha256').update((env.SESSION_SECRET || db.auth.secret) + '|' + ADMIN_PASSWORD).digest('hex');
+let SESSION_SECRET = '';   // set in start(), once the store has loaded
 
 const DEPTS = ['Marketing', 'Human Resource', 'Operation', 'DEV', 'IT', 'BOD', 'Kế toán – Tài chính', 'Kinh doanh', 'Hành chính – Pháp chế', 'Kỹ thuật – Bảo trì', 'Chăm sóc khách hàng', 'An ninh – Vệ sinh', 'Khác'];
 const TYPES = ['Dự án', 'Hội sở'];
@@ -102,7 +98,9 @@ function changed(admin) {
 }
 setInterval(() => { for (const c of clients) c.res.write(': ping\n\n'); }, 25e3).unref();
 
-/* ── rate limiting (in memory) ── */
+/* ── rate limiting (in memory) ──
+   Limits are per IP and generous on purpose: at the party the whole hall shares one Wi-Fi, so hundreds of phones
+   arrive from the same public IP. Duplicates are already stopped by phone number and one vote per guest. */
 const buckets = new Map();
 function limited(key, max, windowMs) {
   const t = now(), b = (buckets.get(key) || []).filter((x) => t - x < windowMs);
@@ -155,7 +153,7 @@ const sameSecret = (a, b) => crypto.timingSafeEqual(crypto.createHash('sha256').
 async function api(req, res, url) {
   const p = url.pathname, ip = clientIp(req);
   if (p === '/api/status' && req.method === 'GET') {
-    if (limited('status:' + ip, 240, 60e3)) return send(res, 429, { error: 'Slow down.' });
+    if (limited('status:' + ip, 3000, 60e3)) return send(res, 429, { error: 'Slow down.' });
     return send(res, 200, publicStatus());
   }
   if (p === '/api/stream' && req.method === 'GET') {
@@ -176,7 +174,7 @@ async function api(req, res, url) {
     return send(res, 200, { me: Object.assign(pub(a), { email: a.email, phone: a.phone, visits: a.visits.length, history: a.visits.slice(-6).reverse() }), vote, wins });
   }
   if (p === '/api/checkin' && req.method === 'POST') {
-    if (limited('checkin:' + ip, 30, 600e3)) return send(res, 429, { error: 'Thao tác quá nhanh, vui lòng thử lại sau ít phút hoặc liên hệ bàn BTC.' });
+    if (limited('checkin:' + ip, 600, 600e3)) return send(res, 429, { error: 'Thao tác quá nhanh, vui lòng thử lại sau ít phút hoặc liên hệ bàn BTC.' });
     const b = await readJson(req);
     if (b.website) return send(res, 400, { error: 'Vui lòng thử lại.' });   // bot trap
     const cur = meOf(req);
@@ -194,7 +192,7 @@ async function api(req, res, url) {
     return send(res, 200, { me: pub(a) }, { 'Set-Cookie': setCookie('yep_t', a.token, 30) });
   }
   if (p === '/api/recover' && req.method === 'POST') {
-    if (limited('recover:' + ip, 10, 600e3)) return send(res, 429, { error: 'Thử quá nhiều lần, vui lòng đợi ít phút.' });
+    if (limited('recover:' + ip, 120, 600e3)) return send(res, 429, { error: 'Thử quá nhiều lần, vui lòng đợi ít phút.' });
     const b = await readJson(req);
     const pn = normPhone(b.phone), em = str(b.email, 120).toLowerCase();
     const a = pn && em ? db.attendees.find((x) => x.phoneNorm === pn && x.email === em) : null;
@@ -202,7 +200,7 @@ async function api(req, res, url) {
     return send(res, 200, { me: pub(a) }, { 'Set-Cookie': setCookie('yep_t', a.token, 30) });
   }
   if (p === '/api/vote' && req.method === 'POST') {
-    if (limited('vote:' + ip, 60, 60e3)) return send(res, 429, { error: 'Thao tác quá nhanh.' });
+    if (limited('vote:' + ip, 1200, 60e3)) return send(res, 429, { error: 'Thao tác quá nhanh.' });
     const a = meOf(req);
     if (!a) return send(res, 401, { error: 'Bạn cần check-in trước khi bình chọn.' });
     if (!db.settings.votingOpen) return send(res, 409, { error: 'Cổng bình chọn đang đóng.' });
@@ -294,7 +292,7 @@ async function admin(req, res, url) {
     const buf = await readBody(req, 12e6);
     if (!buf.length) return send(res, 400, { error: 'Tệp rỗng.' });
     const name = Date.now().toString(36) + '-' + token(6) + ext;
-    fs.writeFileSync(path.join(UPLOAD_DIR, name), buf);
+    await store.putUpload(name, ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg', buf);
     return send(res, 200, { url: '/uploads/' + name });
   }
   if (p === '/admin/api/draw' && req.method === 'POST') {
@@ -378,8 +376,13 @@ function serveStatic(req, res, url) {
   let p = decodeURIComponent(url.pathname);
   if (BLOCKED.test(p) || p.includes('\0')) return send(res, 404, 'Not found');
   if (p.startsWith('/uploads/')) {
-    const file = path.join(UPLOAD_DIR, path.basename(p));
-    return serveFile(req, res, file, 'public, max-age=604800');
+    const name = path.basename(p);
+    if (!/^[\w.-]+$/.test(name)) return send(res, 404, 'Not found');
+    return store.getUpload(name).then((f) => {
+      if (!f) return send(res, 404, 'Not found');
+      res.writeHead(200, { 'Content-Type': f.type, 'Content-Length': f.data.length, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'public, max-age=604800, immutable' });
+      res.end(req.method === 'HEAD' ? undefined : f.data);
+    }).catch((e) => { console.error('upload read failed', e.message); send(res, 500, 'Error'); });
   }
   if (p.endsWith('/')) p += 'index.html';
   const file = path.join(ROOT, path.normalize(p));
@@ -403,7 +406,16 @@ const server = http.createServer(async (req, res) => {
 });
 
 function start() {
-  server.listen(PORT, '0.0.0.0', () => console.log(`IPS YEP 2026 server on port ${PORT} · public ${BASE_URL} · dashboard ${BASE_URL}/admin/ · screen ${BASE_URL}/screen/`));
+  // wait for the store (PostgreSQL or the JSON file) before taking requests
+  store.ready.then(() => {
+    if (!db.auth.secret) { db.auth.secret = crypto.randomBytes(32).toString('hex'); store.save(); }
+    // changing ADMIN_PASSWORD signs every dashboard session out
+    SESSION_SECRET = crypto.createHash('sha256').update((env.SESSION_SECRET || db.auth.secret) + '|' + ADMIN_PASSWORD).digest('hex');
+    server.listen(PORT, '0.0.0.0', () => console.log(`IPS YEP 2026 server on port ${PORT} · store ${store.kind} · public ${BASE_URL} · dashboard ${BASE_URL}/admin/ · screen ${BASE_URL}/screen/`));
+  }).catch((e) => {
+    console.error('[!] Could not open the data store:', e.message);
+    process.exit(1);
+  });
 }
 if (require.main === module) start();
 module.exports = { server, db, start };

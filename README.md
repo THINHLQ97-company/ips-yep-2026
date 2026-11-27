@@ -1,7 +1,8 @@
 # IPS Year End Party 2026 — The Other Way | Mở lối đi riêng
 
 Trang check-in, bình chọn văn nghệ, bốc thăm may mắn và dashboard BTC cho YEP 2026 của IPS.
-Cấu trúc giống repo MDF 2027: Node.js thuần, không framework, không database, **không cần `npm install`**.
+Cấu trúc giống repo MDF 2027: Node.js thuần, không framework. Dữ liệu lưu trong **PostgreSQL** khi có `DATABASE_URL`
+(dùng khi deploy, ví dụ Vibe Host), hoặc trong file JSON khi chạy thử trên máy. Thư viện duy nhất: `pg`.
 
 | Đường dẫn | Dành cho | Nội dung |
 |---|---|---|
@@ -15,7 +16,8 @@ Cấu trúc giống repo MDF 2027: Node.js thuần, không framework, không dat
 Cần Node.js 18 trở lên.
 
 ```bash
-cp .env.example .env    # điền ADMIN_PASSWORD và PUBLIC_URL
+cp .env.example .env    # điền ADMIN_PASSWORD, PUBLIC_URL, DATABASE_URL
+npm install
 npm start               # http://localhost:8000 · dashboard /admin/ · màn hình /screen/
 ```
 
@@ -35,10 +37,12 @@ docker run -d -p 8000:3000 -e ADMIN_PASSWORD=... -e PUBLIC_URL=https://yep.ipsco
 | `ADMIN_PASSWORD` | Mật khẩu chung của BTC cho `/admin/`. Bỏ trống = dashboard khoá. Đổi mật khẩu sẽ đăng xuất mọi phiên. |
 | `SESSION_SECRET` | Chuỗi ngẫu nhiên ký phiên đăng nhập (bỏ trống thì tự sinh và lưu trong `data/`) |
 | `TRUST_PROXY=1` | Bật khi chạy sau Nginx/Cloudflare để giới hạn tần suất theo đúng IP người dùng |
-| `DATA_DIR` | Thư mục dữ liệu (mặc định `data/`): `db.json` + ảnh tải lên trong `uploads/` |
+| `DATABASE_URL` | Chuỗi kết nối PostgreSQL `postgres://user:pass@host:5432/db` (cũng nhận `POSTGRES_URL` hoặc các biến `PGHOST`, `PGUSER`...). Có biến này thì toàn bộ dữ liệu và ảnh tải lên lưu trong database: bảng `yep_state` (một dòng JSONB) và `yep_uploads`. Bảng tự tạo khi khởi động. |
+| `DATABASE_SSL` | Đặt `true` nếu database bắt buộc SSL (hoặc thêm `?sslmode=require` vào URL) |
+| `DATA_DIR` | Chỉ dùng khi không có `DATABASE_URL`: thư mục chứa `db.json` + `uploads/` (mặc định `data/`) |
 
-**Quan trọng khi deploy:** thư mục `data/` phải được giữ lại giữa các lần deploy (volume Docker hoặc thư mục cố định trên host),
-nếu không danh sách check-in sẽ mất. `data/` đã nằm trong `.gitignore`, không bao giờ lên Git.
+**Quan trọng khi deploy:** luôn gắn PostgreSQL (`DATABASE_URL`). Không có database, dữ liệu nằm trong ổ đĩa container và sẽ mất khi deploy lại.
+Lần đầu chạy với PostgreSQL, nếu còn file `data/db.json` cũ thì dữ liệu trong đó được chuyển sang database. App chạy **một instance** (không scale nhiều bản cùng lúc).
 
 ## Luồng sự kiện
 
@@ -69,5 +73,5 @@ Dashboard → Dữ liệu → "Tạo 30 khách mẫu" để thử màn hình bì
 - `screen/index.html`, `css/stage.css`, `js/stage.js` – sân khấu 3D (tòa tháp bình chọn, bục giải, đường đua)
 - `admin/index.html`, `admin/admin.js` – dashboard BTC
 - `js/yep-common.js` – hàm dùng chung; `js/qrcode.js` – thư viện QR (MIT)
-- `server/server.js` (HTTP + API + SSE realtime), `server/store.js` (JSON store ghi nguyên tử)
+- `server/server.js` (HTTP + API + SSE realtime), `server/store.js` (lưu PostgreSQL hoặc file JSON)
 - `fonts/` – Poppins, Barlow, Unbounded (có bộ chữ tiếng Việt), tự host
